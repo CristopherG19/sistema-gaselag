@@ -1,0 +1,22 @@
+{
+  "resources/css/app.css": {
+    "file": "assets/app-BPWzf21J.css",
+    "src": "resources/css/app.css",
+    "isEntry": true,
+    "names": [
+      "app.css"
+    ]
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-Bj43h_rG.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true
+  },
+  "resources/js/dbf-viewer.js": {
+    "file": "assets/dbf-viewer-4wrfThy7.js",
+    "name": "dbf-viewer",
+    "src": "resources/js/dbf-viewer.js",
+    "isEntry": true
+  }
+}

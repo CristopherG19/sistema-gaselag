@@ -1,0 +1,29 @@
+body {
+    background-color: #f8f9fa;
+}
+
+.card {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.card-header {
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+}
+
+.btn {
+    border-radius: 0.25rem;
+}
+
+.logo-navbar {
+    max-height: 80px;
+    height: auto;
+    width: auto;
+}
+
+@media (max-width: 768px) {
+    .logo-navbar {
+        max-height: 50px;
+    }
+}

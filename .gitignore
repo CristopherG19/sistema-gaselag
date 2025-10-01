@@ -1,0 +1,70 @@
+# Laravel
+/vendor/
+/node_modules/
+/public/hot
+/public/storage
+/storage/*.key
+/storage/app/public
+/storage/framework/cache/data
+/storage/framework/sessions
+/storage/framework/testing
+/storage/framework/views
+/storage/logs/*.log
+/storage/logs/debug_*.log
+/storage/logs/tail_*.log
+/storage/logs/recent_*.log
+/bootstrap/cache/*.php
+
+# Environment
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+laravel.log
+
+# Temporary files
+*.tmp
+*.temp
+/temp/
+/tmp/
+
+# Database
+*.sqlite
+*.db
+
+# Backup files
+*.backup
+*.bak
+*.old
+
+# Test files
+test_*.php
+debug_*.php
+fix_*.php
+check_*.php
+verify_*.php
+setup_*.php

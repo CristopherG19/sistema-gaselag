@@ -1,0 +1,75 @@
+<?php
+
+/** @var \Illuminate\Routing\Router $router */
+
+use Illuminate\Support\Facades\Route;
+
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\PasswordController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\RemesaController;
+use App\Http\Controllers\LogController;
+
+Route::get('/', [LoginController::class, 'showLoginForm']);
+
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'login']);
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
+Route::post('/register', [RegisterController::class, 'register']);
+
+Route::get('/forgot-password', [PasswordController::class, 'showForgotForm'])->name('password.request');
+Route::post('/forgot-password', [PasswordController::class, 'sendResetLink'])->name('password.email');
+Route::get('/reset-password/{token}', [PasswordController::class, 'showResetForm'])->name('password.reset');
+Route::post('/reset-password', [PasswordController::class, 'reset'])->name('password.update');
+
+Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('auth')->name('dashboard');
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/admin/historial-passwords', [AdminController::class, 'historial'])->name('admin.historial-passwords');
+});
+
+// === RUTAS PARA SISTEMA DE REMESAS ===
+Route::middleware(['auth'])->group(function () {
+    // Rutas que pueden usar todos los usuarios autenticados
+    Route::get('/remesa/lista', [RemesaController::class, 'lista'])->name('remesa.lista');
+    Route::get('/remesas/general', [RemesaController::class, 'vistaGeneral'])->name('remesas.general');
+    Route::get('/remesa/{nroCarga}/registros', [RemesaController::class, 'verRegistros'])->name('remesa.ver.registros');
+    Route::get('/remesa/registro/{id}/historial', [RemesaController::class, 'verHistorial'])->name('remesa.ver.historial');
+    
+    // Rutas que solo pueden usar administradores (temporalmente sin middleware)
+    Route::middleware(['auth'])->group(function () {
+        // Flujo original (mantener para compatibilidad)
+        Route::get('/remesa/upload', [RemesaController::class, 'uploadForm'])->name('remesa.upload.form');
+        Route::post('/remesa/upload', [RemesaController::class, 'upload'])->name('remesa.upload');
+        Route::get('/remesa/preview', [RemesaController::class, 'preview'])->name('remesa.preview');
+        Route::post('/remesa/verificar-duplicado', [RemesaController::class, 'verificarDuplicado'])->name('remesa.verificar.duplicado');
+        Route::post('/remesa/cargar-sistema', [RemesaController::class, 'cargarAlSistema'])->name('remesa.cargar.sistema');
+        
+        // Nuevo flujo de dos pasos
+        Route::post('/remesa/subir-pendiente', [RemesaController::class, 'subirComoPendiente'])->name('remesa.subir.pendiente');
+        Route::get('/remesa/procesar', [RemesaController::class, 'procesarForm'])->name('remesa.procesar.form');
+        Route::post('/remesa/procesar', [RemesaController::class, 'procesarPendiente'])->name('remesa.procesar');
+        
+        Route::get('/remesa/cancelar', [RemesaController::class, 'cancelar'])->name('remesa.cancelar');
+        
+        // Rutas para editar registros específicos (solo admin)
+        Route::get('/remesa/registro/{id}/editar', [RemesaController::class, 'editarRegistro'])->name('remesa.editar.registro');
+        Route::put('/remesa/registro/{id}', [RemesaController::class, 'actualizarRegistro'])->name('remesa.actualizar.registro');
+        
+        // Rutas para gestionar remesas (solo admin)
+        Route::get('/remesa/{nroCarga}/gestionar', [RemesaController::class, 'gestionarRegistros'])->name('remesa.gestionar.registros');
+        Route::get('/remesa/{nroCarga}/editar-metadatos', [RemesaController::class, 'editarMetadatos'])->name('remesa.editar.metadatos');
+        Route::put('/remesa/{nroCarga}/metadatos', [RemesaController::class, 'actualizarMetadatos'])->name('remesa.actualizar.metadatos');
+    });
+});
+
+// === RUTAS DEL SISTEMA DE LOGGING ===
+Route::prefix('api')->group(function () {
+    Route::post('/logs', [LogController::class, 'store'])->name('logs.store');
+    Route::get('/logs', [LogController::class, 'index'])->middleware('auth')->name('logs.index');
+    Route::delete('/logs', [LogController::class, 'clean'])->middleware('auth')->name('logs.clean');
+});

@@ -1,0 +1,690 @@
+/* ========================================
+   Estilos para el Visor de Archivos DBF
+   ======================================== */
+
+/* ===== COLUMNAS DE FECHA ===== */
+/* Celdas de fecha individuales */
+.date-cell {
+    position: relative;
+}
+
+/* Texto de fecha formateado */
+.formatted-date {
+    font-weight: 600;
+    color: #155724;
+    position: relative;
+}
+
+/* ===== MODAL DE DETALLES ===== */
+#recordDetailModal .modal-content {
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+#recordDetailModal .card {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+#recordDetailModal .card-header {
+    border-radius: 8px 8px 0 0;
+    font-weight: 600;
+}
+
+#recordDetailModal .card-body {
+    font-size: 0.85rem;
+    line-height: 1.3;
+}
+
+/* ===== SCROLLBARS PERSONALIZADOS ===== */
+#recordDetailModal #clientInfo,
+#recordDetailModal #technicalInfo {
+    scrollbar-width: thin;
+    scrollbar-color: #888 #f1f1f1;
+}
+
+#recordDetailModal #clientInfo::-webkit-scrollbar,
+#recordDetailModal #technicalInfo::-webkit-scrollbar {
+    width: 6px;
+}
+
+#recordDetailModal #clientInfo::-webkit-scrollbar-track,
+#recordDetailModal #technicalInfo::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+#recordDetailModal #clientInfo::-webkit-scrollbar-thumb,
+#recordDetailModal #technicalInfo::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+#recordDetailModal #clientInfo::-webkit-scrollbar-thumb:hover,
+#recordDetailModal #technicalInfo::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* ===== INFORMACIÓN MODAL COMPACTA ===== */
+#recordDetailModal .d-flex {
+    font-size: 0.8rem;
+    margin-bottom: 0.4rem !important;
+    padding-bottom: 0.3rem !important;
+}
+
+#recordDetailModal .fw-bold {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+#recordDetailModal .text-primary {
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+#recordDetailModal .table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 0.3rem;
+    border-color: #dee2e6;
+}
+
+#recordDetailModal .table td {
+    font-size: 0.8rem;
+    padding: 0.3rem;
+    border-color: #dee2e6;
+}
+
+#recordDetailModal .table-responsive {
+    max-height: 300px;
+    border-radius: 5px;
+}
+
+#recordDetailModal .table-responsive::-webkit-scrollbar {
+    width: 8px;
+}
+
+#recordDetailModal .table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+#recordDetailModal .table-responsive::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+#recordDetailModal .table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+#recordDetailModal .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+#recordDetailModal .modal-header {
+    border-radius: 10px 10px 0 0;
+}
+
+#recordDetailModal .modal-footer {
+    border-radius: 0 0 10px 10px;
+}
+
+/* ===== EFECTOS HOVER MODAL ===== */
+#recordDetailModal .border-bottom:hover {
+    background-color: rgba(0,123,255,0.1);
+    border-radius: 3px;
+}
+
+/* ===== TABLA PRINCIPAL DBF ===== */
+.table tbody tr {
+    height: 30px; /* Altura fija para todas las filas */
+    line-height: 1.2;
+}
+
+.table tbody td {
+    padding: 8px 6px !important; /* Padding más compacto */
+    vertical-align: middle; /* Centrar contenido verticalmente */
+    white-space: nowrap; /* Evitar que el texto se ajuste */
+    overflow: hidden; /* Ocultar contenido que no cabe */
+    text-overflow: ellipsis; /* Mostrar "..." cuando el texto es muy largo */
+    font-size: 0.75rem; /* Reducido de 0.875rem a 0.8rem para texto más pequeño */
+    position: relative; /* Para tooltips */
+}
+
+/* ===== COLUMNAS ESPECÍFICAS CON ANCHOS OPTIMIZADOS ===== */
+.table tbody td:nth-child(1) { /* # */
+    max-width: 60px;
+    text-align: center;
+}
+
+.table tbody td:nth-child(2) { /* Acción */
+    max-width: 80px;
+    text-align: center;
+}
+
+.table tbody td:nth-child(3) { /* NIS */
+    max-width: 120px;
+    font-weight: 600;
+}
+
+/* Para columnas con direcciones/nombres largos - AMPLIADO */
+.table tbody td:nth-child(n+4) {
+    max-width: 220px; /* Aumentado de 180px a 220px para más espacio */
+}
+
+/* Nombres de clientes más amplios */
+.table tbody td:nth-child(14) { /* NOMCLIE - columna de nombres */
+    max-width: 280px; /* Aumentado de 200px a 280px para nombres completos */
+}
+
+/* ===== EFECTOS HOVER TABLA ===== */
+.table tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.08) !important;
+    /* transform: scale(1.0005); */
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Agregar tooltips para texto truncado */
+.table tbody td:hover {
+    overflow: visible;
+    white-space: normal;
+    word-wrap: break-word;
+    z-index: 10;
+    position: relative;
+    background-color: rgba(0, 123, 255, 0.1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    border-radius: 4px;
+}
+
+/* Tooltip para celdas truncadas */
+.table tbody td[title]:hover {
+    position: relative;
+    z-index: 10;
+}
+
+/* ===== HEADER DE LA TABLA ===== */
+.table thead th {
+    padding: 10px 6px !important;
+    font-size: 0.8rem; /* Reducido de 0.85rem a 0.8rem para coincidir con el contenido */
+    font-weight: 600;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #343a40 !important;
+    border-bottom: 2px solid #495057; /* Línea más visible para separar header */
+}
+
+/* ===== MEJORAS VISUALES PARA SCROLL ===== */
+.table tbody {
+    position: relative;
+}
+
+/* Indicador visual cuando hay scroll disponible */
+.table-responsive::before {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 10px;
+    height: 100%;
+    background: linear-gradient(to left, rgba(0,0,0,0.1), transparent);
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* Sombra en el header cuando hay contenido debajo */
+.table thead th::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.1), transparent);
+    pointer-events: none;
+}
+
+/* ===== MENSAJE DE ESTADO DE SCROLL ===== */
+.scroll-indicator {
+    position: absolute;
+    bottom: 10px;
+    right: 20px;
+    background: rgba(0, 123, 255, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    z-index: 15;
+}
+
+.table-responsive:hover .scroll-indicator {
+    opacity: 1;
+}
+
+/* ===== CONTENEDOR Y TABLA MÁS AMPLIA ===== */
+.dbf-viewer-container {
+    margin: 0 0 2rem 0 !important; /* Agregado margen inferior para el footer */
+    padding: 0 10px !important;
+    max-width: 100% !important;
+    height: calc(100vh - 160px); /* Restamos espacio para navbar + footer */
+    display: flex;
+    flex-direction: column;
+}
+
+.dbf-viewer-container .card {
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: calc(100vh - 160px); /* Altura máxima considerando navbar y footer */
+    margin-bottom: 1rem; /* Margen inferior adicional */
+}
+
+.dbf-viewer-container .card-body {
+    padding: 0 !important;
+    flex: 1; /* Ocupa el espacio disponible */
+    overflow: hidden; /* Evita desbordamiento */
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== TABLA CON SCROLL INTERNO ===== */
+.table-responsive {
+    max-width: 100%;
+    overflow: auto; /* Scroll en ambas direcciones */
+    flex: 1; /* Ocupa todo el espacio disponible */
+    border-radius: 8px;
+    /* Altura calculada automáticamente por flexbox */
+    max-height: calc(100vh - 400px); /* Más conservador para evitar invasión del footer */
+    min-height: 300px; /* Altura mínima reducida */
+}
+
+.table {
+    width: 100%;
+    min-width: 1600px; /* Aumentado de 1400px a 1600px para más ancho */
+    margin-bottom: 0;
+}
+
+/* ===== SCROLLBARS PERSONALIZADOS PARA LA TABLA ===== */
+.table-responsive::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 6px;
+    border: 2px solid #f1f1f1;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.table-responsive::-webkit-scrollbar-corner {
+    background: #f1f1f1;
+}
+
+/* ===== PAGINACIÓN Y FOOTER FIJOS ===== */
+.dbf-viewer-container .card-footer {
+    flex-shrink: 0; /* No se encoge */
+    border-top: 1px solid #dee2e6;
+    background-color: #f8f9fa;
+}
+
+/* ===== HEADER COMPACTO ===== */
+.dbf-viewer-container .card-header {
+    flex-shrink: 0; /* No se encoge */
+    padding: 0.75rem 1rem; /* Padding más compacto */
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+/* Pantallas grandes */
+@media (min-width: 1400px) {
+    .container-fluid {
+        max-width: 99%; /* Aumentado de 98% a 99% para usar más ancho */
+        margin: 0 auto;
+    }
+    
+    .table tbody td:nth-child(n+4) {
+        max-width: 260px; /* Aumentado de 240px a 260px para pantallas grandes */
+    }
+    
+    .table tbody td:nth-child(14) { /* NOMCLIE */
+        max-width: 320px; /* Aumentado de 280px a 320px para nombres muy largos */
+    }
+    
+    .table {
+        min-width: 1800px; /* Aumentado de 1600px a 1800px para pantallas grandes */
+    }
+    
+    .table-responsive {
+        max-height: calc(100vh - 380px); /* Más conservador en pantallas grandes */
+    }
+    
+    .dbf-viewer-container {
+        height: calc(100vh - 140px); /* Mejor cálculo para pantallas grandes */
+    }
+}
+
+/* Pantallas medianas */
+@media (min-width: 992px) and (max-width: 1399px) {
+    .table tbody td:nth-child(n+4) {
+        max-width: 200px; /* Aumentado de 160px a 200px */
+    }
+    
+    .table tbody td:nth-child(14) { /* NOMCLIE */
+        max-width: 240px; /* Aumentado de 180px a 240px */
+    }
+    
+    .table-responsive {
+        max-height: calc(100vh - 420px); /* Más conservador para pantallas medianas */
+    }
+    
+    .dbf-viewer-container {
+        height: calc(100vh - 150px); /* Ajuste para pantallas medianas */
+    }
+}
+
+/* Pantallas pequeñas - mantener usabilidad */
+@media (max-width: 991px) {
+    .table {
+        min-width: 1200px; /* Forzar scroll horizontal en móviles */
+    }
+    
+    .dbf-viewer-container {
+        padding: 0 5px !important;
+        height: auto; /* En móviles permitir altura automática */
+        min-height: calc(100vh - 200px); /* Altura mínima para evitar footer */
+    }
+    
+    .dbf-viewer-container .card {
+        max-height: calc(100vh - 200px); /* Respeta el footer en móviles */
+    }
+    
+    .table-responsive {
+        max-height: calc(100vh - 350px); /* Muy conservador en móviles */
+        min-height: 250px; /* Altura mínima reducida en móviles */
+    }
+}
+
+/* Pantallas muy pequeñas */
+@media (max-width: 768px) {
+    .dbf-viewer-container .card-header {
+        padding: 0.5rem; /* Header más compacto en móviles */
+    }
+    
+    .table-responsive {
+        max-height: calc(100vh - 400px); /* Muy conservador en móviles pequeños */
+        min-height: 200px; /* Altura mínima muy pequeña */
+    }
+    
+    .table tbody td {
+        font-size: 0.75rem; /* Texto más pequeño en móviles */
+    }
+    
+    .dbf-viewer-container {
+        height: auto; /* Altura automática en móviles muy pequeños */
+        max-height: calc(100vh - 250px); /* Límite máximo respetando footer */
+    }
+}
+
+/* ===== CONTROL DEL MODAL ===== */
+/* Control del ancho del modal de detalles */
+.modal-dialog {
+    max-width: 700px !important; /* Volvemos al ancho anterior */
+}
+
+/* CSS responsivo para tablas del modal */
+.responsive-table {
+    display: none !important; /* Ocultar la tabla para usar el formato de arriba */
+}
+
+/* Estilo para que "Todos los Datos" se vea como las secciones de arriba */
+#allDataTable table {
+    display: none !important; /* Ocultar cualquier tabla dentro */
+}
+
+/* Nuevo contenedor para mostrar datos como las secciones de arriba */
+.data-list-format {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem;
+}
+
+.data-list-format .data-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.data-list-format .data-item:last-child {
+    border-bottom: none;
+}
+
+.data-list-format .data-label {
+    font-weight: 600;
+    color: #007bff;
+    min-width: 130px;
+    max-width: 130px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+
+.data-list-format .data-value {
+    color: #495057;
+    flex: 1;
+    text-align: right;
+    word-break: break-word;
+    font-weight: 500;
+}
+
+/* ===== ESTILOS PARA EDICIÓN IN-PLACE ===== */
+/* Fila en modo edición */
+.edit-mode {
+    background-color: #fff3cd !important;
+    border: 2px solid #ffc107 !important;
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.3) !important;
+}
+
+.edit-mode td {
+    background-color: #fff3cd !important;
+    position: relative;
+}
+
+/* Inputs de edición */
+.edit-input {
+    width: 100%;
+    padding: 4px 6px;
+    border: 1px solid #ffc107;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    background-color: #ffffff;
+    transition: all 0.2s ease;
+}
+
+.edit-input:focus {
+    outline: none;
+    border-color: #ff9800;
+    box-shadow: 0 0 5px rgba(255, 152, 0, 0.5);
+    background-color: #fffef7;
+}
+
+/* Input inválido */
+.edit-input.invalid {
+    border-color: #dc3545;
+    background-color: #f8d7da;
+}
+
+.edit-input.invalid:focus {
+    box-shadow: 0 0 5px rgba(220, 53, 69, 0.5);
+}
+
+/* Indicador de campo modificado */
+.field-modified {
+    position: relative;
+}
+
+.field-modified::after {
+    content: "●";
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    color: #28a745;
+    font-size: 8px;
+    z-index: 10;
+}
+
+/* Botones de acción para edición */
+.edit-actions {
+    display: none;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.edit-mode .edit-actions {
+    display: flex;
+    justify-content: center;
+}
+
+.edit-save-btn {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.edit-save-btn:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+.edit-cancel-btn {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.edit-cancel-btn:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+}
+
+/* Tooltip para errores de validación */
+.validation-error {
+    position: absolute;
+    bottom: -20px;
+    left: 0;
+    background-color: #dc3545;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    z-index: 1000;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.validation-error::before {
+    content: "";
+    position: absolute;
+    top: -4px;
+    left: 10px;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 4px solid #dc3545;
+}
+
+/* Loading spinner para guardar */
+.save-loading {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #28a745;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 5px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Indicador visual de cambios pendientes */
+.has-changes {
+    position: relative;
+}
+
+.has-changes::before {
+    content: "Cambios pendientes";
+    position: absolute;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #17a2b8;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    z-index: 1000;
+    white-space: nowrap;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+/* Responsive para edición */
+@media (max-width: 768px) {
+    .edit-input {
+        font-size: 0.7rem;
+        padding: 3px 4px;
+    }
+    
+    .edit-save-btn, .edit-cancel-btn {
+        font-size: 0.65rem;
+        padding: 1px 6px;
+    }
+    
+    .validation-error {
+        font-size: 0.6rem;
+        padding: 1px 4px;
+    }
+}
