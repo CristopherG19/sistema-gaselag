@@ -220,7 +220,7 @@ class RemesaController extends Controller
                 'nombre_archivo' => $file->getClientOriginalName(),
                 'nro_carga' => $nroCarga,
                 'fecha_carga' => now(),
-                'datos_dbf' => $datosDbf,
+                'datos_dbf' => $rows, // Guardar todos los registros, no solo el primero
             ]);
 
             // Guardar datos en sesión para el siguiente paso
@@ -279,15 +279,23 @@ class RemesaController extends Controller
                 $parsed = $parser->parseFile(Storage::path($tempPath));
                 $rows = $parsed['rows'] ?? [];
             } else {
-                // Si no hay archivo temporal, crear datos de ejemplo para el procesamiento
-                $rows = [
-                    [
-                        'NIS' => $remesaPendiente->nis,
-                        'NROMEDIDOR' => $remesaPendiente->nromedidor,
-                        'NOMCLI' => $remesaPendiente->nomcli,
-                        'DIR_PROC' => $remesaPendiente->dir_pro,
-                    ]
-                ];
+                // Si no hay archivo temporal, usar los datos reales de datos_dbf
+                $datos_dbf = is_array($remesaPendiente->datos_dbf) ? $remesaPendiente->datos_dbf : json_decode($remesaPendiente->datos_dbf, true);
+                
+                if (is_array($datos_dbf) && !empty($datos_dbf)) {
+                    // Los datos_dbf ahora contienen todos los registros como array de arrays
+                    $rows = $datos_dbf;
+                } else {
+                    // Fallback: crear datos de ejemplo solo si no hay datos reales
+                    $rows = [
+                        [
+                            'NIS' => $remesaPendiente->nis ?? 'N/A',
+                            'NROMEDIDOR' => $remesaPendiente->nromedidor ?? 'N/A',
+                            'NOMCLI' => $remesaPendiente->nomcli ?? 'N/A',
+                            'DIR_PROC' => $remesaPendiente->dir_pro ?? 'N/A',
+                        ]
+                    ];
+                }
             }
             
             $nroCarga = $remesaPendiente->nro_carga;
@@ -557,11 +565,15 @@ class RemesaController extends Controller
                 ->orderBy('fecha_carga', 'desc')
                 ->get()
                 ->map(function ($remesa) {
+                    // Contar registros reales en datos_dbf
+                    $datos_dbf = is_array($remesa->datos_dbf) ? $remesa->datos_dbf : json_decode($remesa->datos_dbf, true);
+                    $totalRegistros = is_array($datos_dbf) ? count($datos_dbf) : 1;
+                    
                     return (object) [
                         'nro_carga' => $remesa->nro_carga,
                         'nombre_archivo' => $remesa->nombre_archivo,
                         'cargado_al_sistema' => false,
-                        'total_registros' => 1, // Por ahora, cada pendiente es 1 registro
+                        'total_registros' => $totalRegistros, // Contar registros reales
                         'fecha_carga' => $remesa->fecha_carga,
                         'primer_id' => $remesa->id,
                         'editado' => false,
