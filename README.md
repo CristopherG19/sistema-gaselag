@@ -67,7 +67,26 @@ Sistema web desarrollado en Laravel para la gestión de remesas de archivos DBF 
 
 ## 🚀 Instalación Rápida (Windows + XAMPP)
 
-Si tienes XAMPP instalado y ejecutándose, sigue estos pasos:
+### **Opción A: Instalación Automatizada (Recomendada)**
+
+```batch
+# 1. Clonar repositorio
+git clone https://github.com/CristopherG19/sistema-gaselag.git
+cd sistema-gaselag
+
+# 2. Ejecutar script de instalación
+install.bat
+
+# 3. Crear base de datos en MySQL Workbench
+# Ejecutar: CREATE DATABASE IF NOT EXISTS sistema_login CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+# 4. Configurar .env (cambiar DB_PASSWORD=root si es necesario)
+
+# 5. Iniciar servidor
+php artisan serve
+```
+
+### **Opción B: Instalación Manual**
 
 ```powershell
 # 1. Clonar repositorio
@@ -98,6 +117,13 @@ php artisan serve
 ```
 
 **¡Listo!** El sistema estará en `http://localhost:8000`
+
+### **Verificación Post-Instalación**
+
+```batch
+# Ejecutar script de verificación
+verify.bat
+```
 
 ---
 
