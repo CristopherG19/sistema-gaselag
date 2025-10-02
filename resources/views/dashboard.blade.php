@@ -122,6 +122,38 @@
                     </div>
                     @endif
 
+                    <!-- Gestión de Quejas para todos los usuarios -->
+                    <div class="mb-3">
+                        <a href="{{ route('quejas.index') }}" class="btn btn-outline-warning btn-sm w-100 mb-2">
+                            <i class="fas fa-exclamation-triangle me-1"></i>Gestión de Quejas
+                        </a>
+                    </div>
+
+                    @if($usuario->rol === 'admin')
+                    <!-- Gestión de Usuarios solo para admin -->
+                    <div class="mb-3">
+                        <a href="{{ route('usuarios.index') }}" class="btn btn-outline-info btn-sm w-100 mb-2">
+                            <i class="fas fa-users me-1"></i>Gestión de Usuarios
+                        </a>
+                    </div>
+                    
+                    <!-- Gestión de Entregas para admin -->
+                    <div class="mb-3">
+                        <a href="{{ route('entregas.index') }}" class="btn btn-outline-success btn-sm w-100 mb-2">
+                            <i class="fas fa-truck me-1"></i>Gestión de Entregas
+                        </a>
+                    </div>
+                    @endif
+
+                    @if($usuario->rol === 'operario_campo')
+                    <!-- Mis Entregas para operarios -->
+                    <div class="mb-3">
+                        <a href="{{ route('entregas.index') }}" class="btn btn-outline-success btn-sm w-100 mb-2">
+                            <i class="fas fa-truck me-1"></i>Mis Entregas
+                        </a>
+                    </div>
+                    @endif
+
                     <!-- Cerrar Sesión -->
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf

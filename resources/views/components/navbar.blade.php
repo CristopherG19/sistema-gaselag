@@ -41,6 +41,50 @@
                             <i class="bi bi-grid-3x3-gap me-1"></i>Vista General
                         </a>
                     </li>
+                    
+                    @if(Auth::user()->isAdmin())
+                        <!-- Dropdown para Gestión -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="gestionDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-gear me-1"></i>Gestión
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('usuarios.index') }}">
+                                        <i class="bi bi-people me-2"></i>Gestión de Usuarios
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('quejas.index') }}">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>Gestión de Quejas
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('entregas.index') }}">
+                                        <i class="bi bi-truck me-2"></i>Gestión de Entregas
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    @endif
+                    
+                    @if(Auth::user()->isUsuario() || Auth::user()->isOperarioCampo())
+                        <!-- Quejas para usuarios normales y operarios -->
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('quejas.*') ? 'active' : '' }}" href="{{ route('quejas.index') }}">
+                                <i class="bi bi-exclamation-triangle me-1"></i>Quejas
+                            </a>
+                        </li>
+                    @endif
+                    
+                    @if(Auth::user()->isOperarioCampo())
+                        <!-- Entregas para operarios de campo -->
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('entregas.*') ? 'active' : '' }}" href="{{ route('entregas.index') }}">
+                                <i class="bi bi-truck me-1"></i>Mis Entregas
+                            </a>
+                        </li>
+                    @endif
                 @endauth
             </ul>
 

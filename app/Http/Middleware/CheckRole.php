@@ -23,9 +23,24 @@ class CheckRole
 
         $user = Auth::user();
         
-        // Verificar el rol del usuario
-        if ($user->rol !== $role) {
-            $rolTexto = $role === 'admin' ? 'Administrador' : 'Usuario Normal';
+        // Verificar si el usuario está activo
+        if (!$user->isActivo()) {
+            Auth::logout();
+            return redirect()->route('login')->withErrors(['error' => 'Tu cuenta ha sido desactivada.']);
+        }
+
+        // Verificar rol (soporta múltiples roles separados por |)
+        $rolesPermitidos = explode('|', $role);
+        
+        if (!in_array($user->rol, $rolesPermitidos)) {
+            $rolTexto = match($role) {
+                'admin' => 'Administrador',
+                'usuario' => 'Usuario Normal',
+                'operario_campo' => 'Operario de Campo',
+                'admin|usuario' => 'Administrador o Usuario Normal',
+                'admin|usuario|operario_campo' => 'cualquier rol autorizado',
+                default => 'Rol específico'
+            };
             return redirect()->back()->withErrors(['error' => "Solo los usuarios con rol de {$rolTexto} pueden acceder a esta función."]);
         }
 

@@ -11,6 +11,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\RemesaController;
 use App\Http\Controllers\LogController;
+use App\Http\Controllers\GestionUsuariosController;
+use App\Http\Controllers\GestionQuejasController;
+use App\Http\Controllers\GestionEntregasController;
 
 Route::get('/', [LoginController::class, 'showLoginForm']);
 
@@ -72,4 +75,34 @@ Route::prefix('api')->group(function () {
     Route::post('/logs', [LogController::class, 'store'])->name('logs.store');
     Route::get('/logs', [LogController::class, 'index'])->middleware('auth')->name('logs.index');
     Route::delete('/logs', [LogController::class, 'clean'])->middleware('auth')->name('logs.clean');
+});
+
+// === RUTAS DE GESTIÓN DE USUARIOS (SOLO ADMINISTRADORES) ===
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
+    Route::resource('usuarios', GestionUsuariosController::class);
+    Route::post('usuarios/{usuario}/toggle-activo', [GestionUsuariosController::class, 'toggleActivo'])->name('admin.usuarios.toggle-activo');
+    Route::post('usuarios/{usuario}/reset-password', [GestionUsuariosController::class, 'resetPassword'])->name('admin.usuarios.reset-password');
+    Route::get('usuarios/estadisticas', [GestionUsuariosController::class, 'estadisticas'])->name('admin.usuarios.estadisticas');
+});
+
+// === RUTAS DE GESTIÓN DE QUEJAS (TODOS LOS USUARIOS AUTENTICADOS) ===
+Route::middleware(['auth'])->group(function () {
+    Route::resource('quejas', GestionQuejasController::class);
+    Route::post('quejas/{queja}/asignar', [GestionQuejasController::class, 'asignar'])->middleware('role:admin')->name('quejas.asignar');
+    Route::post('quejas/{queja}/resolver', [GestionQuejasController::class, 'resolver'])->name('quejas.resolver');
+    Route::post('quejas/{queja}/cambiar-estado', [GestionQuejasController::class, 'cambiarEstado'])->name('quejas.cambiar-estado');
+    Route::get('quejas/estadisticas', [GestionQuejasController::class, 'estadisticas'])->name('quejas.estadisticas');
+});
+
+// === RUTAS DE GESTIÓN DE ENTREGAS (ADMINISTRADORES Y USUARIOS NORMALES) ===
+Route::middleware(['auth', 'role:admin|usuario'])->group(function () {
+    Route::resource('entregas', GestionEntregasController::class);
+    Route::get('entregas/estadisticas', [GestionEntregasController::class, 'estadisticas'])->name('entregas.estadisticas');
+});
+
+// === RUTAS ESPECÍFICAS PARA OPERARIOS DE CAMPO ===
+Route::middleware(['auth', 'role:operario_campo'])->group(function () {
+    Route::post('entregas/{entrega}/iniciar', [GestionEntregasController::class, 'iniciar'])->name('entregas.iniciar');
+    Route::post('entregas/{entrega}/completar', [GestionEntregasController::class, 'completar'])->name('entregas.completar');
+    Route::post('entregas/{entrega}/actualizar-progreso', [GestionEntregasController::class, 'actualizarProgreso'])->name('entregas.actualizar-progreso');
 });
