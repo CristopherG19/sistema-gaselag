@@ -45,14 +45,19 @@ chmod -R 775 storage bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
 echo "Permisos configurados"
 
-echo "[7/8] Ejecutando migraciones..."
+echo "[7/8] Creando base de datos..."
+echo "IMPORTANTE: Asegúrate de crear la base de datos 'sistema_gaselag' en MySQL"
+echo "Ejecutar: CREATE DATABASE IF NOT EXISTS sistema_gaselag CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+read -p "Presiona Enter después de crear la base de datos..."
+
+echo "[8/9] Ejecutando migraciones..."
 php artisan migrate
 if [ $? -ne 0 ]; then
     echo "ERROR: Falló la ejecución de migraciones"
     exit 1
 fi
 
-echo "[8/8] Limpiando cache..."
+echo "[9/9] Limpiando cache..."
 php artisan config:clear
 php artisan cache:clear
 php artisan view:clear

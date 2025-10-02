@@ -78,7 +78,7 @@ cd sistema-gaselag
 install.bat
 
 # 3. Crear base de datos en MySQL Workbench
-# Ejecutar: CREATE DATABASE IF NOT EXISTS sistema_login CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+# Ejecutar: CREATE DATABASE IF NOT EXISTS sistema_gaselag CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 # 4. Configurar .env (cambiar DB_PASSWORD=root si es necesario)
 
@@ -101,7 +101,7 @@ Copy-Item .env.example .env
 php artisan key:generate
 
 # 4. Crear base de datos en MySQL Workbench
-# Ejecutar: CREATE DATABASE IF NOT EXISTS sistema_login CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+# Ejecutar: CREATE DATABASE IF NOT EXISTS sistema_gaselag CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 # 5. Configurar .env (cambiar DB_PASSWORD=root si es necesario)
 
@@ -177,16 +177,16 @@ php artisan key:generate
 2. Conectarse al servidor local (puerto 3306)
 3. Ejecutar el siguiente SQL:
 ```sql
-CREATE DATABASE IF NOT EXISTS sistema_login CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS sistema_gaselag CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
 #### **Opción B: Usando línea de comandos**
 ```bash
 # Windows (usando XAMPP)
-C:\xampp\mysql\bin\mysql.exe -u root -p -e "CREATE DATABASE IF NOT EXISTS sistema_login CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+C:\xampp\mysql\bin\mysql.exe -u root -p -e "CREATE DATABASE IF NOT EXISTS sistema_gaselag CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # Linux/Mac
-mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS sistema_login CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS sistema_gaselag CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ```
 
 #### **Configurar archivo .env:**
@@ -194,7 +194,7 @@ mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS sistema_login CHARACTER SET u
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=sistema_login
+DB_DATABASE=sistema_gaselag
 DB_USERNAME=root
 DB_PASSWORD=tu_password_mysql
 ```
@@ -283,9 +283,9 @@ composer install --ignore-platform-req=ext-gd
 ### **Error: "Access denied for user 'root'@'localhost'"**
 - Verificar que MySQL esté ejecutándose en XAMPP
 - Verificar usuario y contraseña en `.env`
-- Asegurarse de que la base de datos `sistema_login` existe
+- Asegurarse de que la base de datos `sistema_gaselag` existe
 
-### **Error: "Unknown database 'sistema_login'"**
+### **Error: "Unknown database 'sistema_gaselag'"**
 - Crear la base de datos manualmente en MySQL Workbench
 - O usar el archivo `create_db.sql` incluido en el proyecto
 

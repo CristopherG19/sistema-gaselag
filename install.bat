@@ -47,7 +47,12 @@ icacls storage /grant Everyone:F /T >nul 2>&1
 icacls bootstrap\cache /grant Everyone:F /T >nul 2>&1
 echo Permisos configurados
 
-echo [7/8] Ejecutando migraciones...
+echo [7/8] Creando base de datos...
+echo IMPORTANTE: Asegurate de crear la base de datos 'sistema_gaselag' en MySQL Workbench
+echo Ejecutar: CREATE DATABASE IF NOT EXISTS sistema_gaselag CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+pause
+
+echo [8/9] Ejecutando migraciones...
 php artisan migrate
 if %errorlevel% neq 0 (
     echo ERROR: Fallo la ejecucion de migraciones
@@ -55,7 +60,7 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo [8/8] Limpiando cache...
+echo [9/9] Limpiando cache...
 php artisan config:clear
 php artisan cache:clear
 php artisan view:clear
