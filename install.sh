@@ -46,8 +46,8 @@ chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
 echo "Permisos configurados"
 
 echo "[7/8] Creando base de datos..."
-echo "IMPORTANTE: Asegúrate de crear la base de datos 'sistema_gaselag' en MySQL"
-echo "Ejecutar: CREATE DATABASE IF NOT EXISTS sistema_gaselag CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+echo "IMPORTANTE: Asegúrate de crear la base de datos 'BD_GASELAG_SISTEMA' en MySQL"
+echo "Ejecutar: CREATE DATABASE IF NOT EXISTS BD_GASELAG_SISTEMA CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 read -p "Presiona Enter después de crear la base de datos..."
 
 echo "[8/9] Ejecutando migraciones..."

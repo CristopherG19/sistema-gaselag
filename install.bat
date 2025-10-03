@@ -48,8 +48,8 @@ icacls bootstrap\cache /grant Everyone:F /T >nul 2>&1
 echo Permisos configurados
 
 echo [7/8] Creando base de datos...
-echo IMPORTANTE: Asegurate de crear la base de datos 'sistema_gaselag' en MySQL Workbench
-echo Ejecutar: CREATE DATABASE IF NOT EXISTS sistema_gaselag CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+echo IMPORTANTE: Asegurate de crear la base de datos 'BD_GASELAG_SISTEMA' en MySQL Workbench
+echo Ejecutar: CREATE DATABASE IF NOT EXISTS BD_GASELAG_SISTEMA CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 pause
 
 echo [8/9] Ejecutando migraciones...
