@@ -184,6 +184,20 @@
                         </div>
                     @endif
 
+                    @if($queja->oc)
+                        <div class="mb-3">
+                            <strong>OC relacionada:</strong><br>
+                            <a href="{{ route('entregas.show', $queja->oc) }}" 
+                               class="text-decoration-none">
+                                {{ $queja->oc->codigo_entrega }}
+                            </a><br>
+                            <small class="text-muted">{{ $queja->oc->nombre_entrega }}</small><br>
+                            <small class="text-muted">
+                                Operario: {{ $queja->oc->operario ? $queja->oc->operario->nombre . ' ' . $queja->oc->operario->apellidos : 'Sin operario' }}
+                            </small>
+                        </div>
+                    @endif
+
                     <div class="mb-0">
                         <strong>Fecha de creación:</strong><br>
                         <small class="text-muted">{{ $queja->fecha_creacion->format('d/m/Y H:i') }}</small>

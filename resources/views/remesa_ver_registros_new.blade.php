@@ -247,25 +247,23 @@ i[class*="bi-"] {
         <!-- Estadísticas -->
         <div class="remesa-stats">
             <div class="row">
-                <div class="col-3">
-                    <div class="stat-item">
-                        <span class="stat-value">{{ $nroCarga }}</span>
-                        <div class="stat-label">Número de Carga</div>
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center">
+                        <div class="me-4">
+                            <h6 class="mb-1">Remesa {{ $nroCarga }}</h6>
+                            <small class="text-muted">{{ $infoRemesa->nombre_archivo }}</small>
+                        </div>
+                        <div class="me-4">
+                            <small class="text-muted">Cargado:</small><br>
+                            <strong>{{ $infoRemesa->fecha_carga->format('d/m/Y H:i') }}</strong>
+                        </div>
+                        <div>
+                            <small class="text-muted">Centro:</small><br>
+                            <strong>{{ $infoRemesa->centro_servicio ?? 'N/A' }}</strong>
+                        </div>
                     </div>
                 </div>
-                <div class="col-3">
-                    <div class="stat-item">
-                        <span class="stat-value">{{ $infoRemesa->nombre_archivo }}</span>
-                        <div class="stat-label">Archivo</div>
-                    </div>
-                </div>
-                <div class="col-3">
-                    <div class="stat-item">
-                        <span class="stat-value">{{ $infoRemesa->fecha_carga->format('d/m/Y H:i') }}</span>
-                        <div class="stat-label">Fecha de Carga</div>
-                    </div>
-                </div>
-                <div class="col-3">
+                <div class="col-md-4 text-end">
                     <div class="stat-item">
                         <span class="stat-value">{{ $registros->total() }}</span>
                         <div class="stat-label">Total de Registros</div>
@@ -324,42 +322,52 @@ i[class*="bi-"] {
                 <table class="table custom-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>NIS</th>
-                            <th>Medidor</th>
-                            <th>Cliente</th>
-                            <th>Dirección</th>
-                            <th>Marca</th>
-                            <th>Teléfono</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
+                            <th style="width: 80px;">ID</th>
+                            <th style="width: 100px;">NIS</th>
+                            <th style="width: 120px;">Medidor</th>
+                            <th style="width: 250px;">Cliente</th>
+                            <th style="width: 300px;">Dirección</th>
+                            <th style="width: 100px;">Marca</th>
+                            <th style="width: 100px;">Teléfono</th>
+                            <th style="width: 80px;">Estado</th>
+                            <th style="width: 120px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($registros as $registro)
                             <tr>
-                                <td>{{ $registro->id }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">#{{ $registro->id }}</span>
+                                </td>
                                 <td>
                                     <a href="{{ route('remesa.editar.registro', $registro->id) }}" 
                                        class="nis-link">{{ $registro->nis }}</a>
                                 </td>
                                 <td>
-                                    <strong>{{ $registro->nromedidor }}</strong>
+                                    <span class="font-monospace">{{ $registro->nromedidor }}</span>
                                 </td>
-                                <td>
-                                    <div class="campo-largo" title="{{ $registro->nomcli }}">
+                                <td title="{{ $registro->nomcli }}">
+                                    <div class="text-truncate" style="max-width: 240px;">
                                         {{ $registro->nomcli }}
                                     </div>
                                 </td>
-                                <td>
-                                    <div class="campo-largo" title="{{ $registro->dir_pro }}">
+                                <td title="{{ $registro->dir_pro }}">
+                                    <div class="text-truncate" style="max-width: 290px;">
                                         {{ $registro->dir_pro }}
                                     </div>
                                 </td>
-                                <td>{{ $registro->marcamed }}</td>
-                                <td>{{ $registro->tel_clie ?: '-' }}</td>
                                 <td>
-                                    <span class="status-badge">Original</span>
+                                    <small class="text-muted">{{ $registro->marcamed ?: '-' }}</small>
+                                </td>
+                                <td>
+                                    <span class="font-monospace">{{ $registro->tel_clie ?: '-' }}</span>
+                                </td>
+                                <td class="text-center">
+                                    @if($registro->editado)
+                                        <span class="status-badge" style="background: #f59e0b;">Editado</span>
+                                    @else
+                                        <span class="status-badge">Original</span>
+                                    @endif
                                 </td>
                                 <td>
                                     <a href="{{ route('remesa.editar.registro', $registro->id) }}" 

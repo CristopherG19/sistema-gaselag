@@ -93,6 +93,23 @@
                             </div>
                         @endif
 
+                        <!-- Alerta de Duplicados Automática -->
+                        @if(!empty($duplicados))
+                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                                <h6><i class="bi bi-exclamation-triangle"></i> ¡Duplicados Detectados!</h6>
+                                <p class="mb-2">Ya existen remesas con el número de carga <strong>{{ $nro_carga }}</strong> en los siguientes centros:</p>
+                                <ul class="mb-3">
+                                    @foreach($duplicados as $centro)
+                                        <li><strong>{{ $centro }}</strong></li>
+                                    @endforeach
+                                </ul>
+                                <p class="mb-0">
+                                    <strong>Recomendación:</strong> Si deseas cargar esta remesa, selecciona un centro diferente o verifica que no sea la misma remesa.
+                                </p>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        @endif
+
                         <!-- Selector de Centro de Servicio -->
                         <div class="alert alert-info mb-4">
                             <h6><i class="bi bi-geo-alt"></i> Seleccionar Centro de Servicio</h6>
@@ -221,18 +238,50 @@
     console.log('Nro carga:', '{{ $nro_carga ?? "" }}');
     
     // Manejar selección de centro de servicio
+    // Datos de duplicados del servidor
+    const duplicados = @json($duplicados ?? []);
+    
     document.getElementById('centro_servicio').addEventListener('change', function() {
         const centroSelect = this;
         const verificarBtn = document.getElementById('verificarBtn');
         const resultadoDiv = document.getElementById('resultadoVerificacion');
+        const cargarBtn = document.getElementById('cargarBtn');
+        const centroHidden = document.getElementById('centro_servicio_hidden');
         
         if (centroSelect.value) {
             verificarBtn.disabled = false;
-            resultadoDiv.style.display = 'none';
+            
+            // Verificar si el centro seleccionado tiene duplicados
+            const centroSeleccionado = centroSelect.options[centroSelect.selectedIndex].text;
+            const tieneDuplicado = duplicados.includes(centroSeleccionado);
+            
+            if (tieneDuplicado) {
+                // Mostrar advertencia de duplicado
+                resultadoDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h6><i class="bi bi-exclamation-triangle"></i> ¡Duplicado Detectado!</h6>
+                        <p>Ya existe una remesa con el número de carga <strong>{{ $nro_carga }}</strong> en el centro <strong>${centroSeleccionado}</strong>.</p>
+                        <p class="mb-0"><strong>No se puede cargar este archivo en este centro.</strong> Selecciona un centro diferente.</p>
+                    </div>
+                `;
+                resultadoDiv.style.display = 'block';
+                cargarBtn.disabled = true;
+            } else {
+                // No hay duplicado, mostrar mensaje de éxito
+                resultadoDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <h6><i class="bi bi-check-circle"></i> Centro Disponible</h6>
+                        <p class="mb-0">No se encontraron duplicados para este centro. El archivo está listo para cargar.</p>
+                    </div>
+                `;
+                resultadoDiv.style.display = 'block';
+                cargarBtn.disabled = false;
+                centroHidden.value = centroSelect.value;
+            }
         } else {
             verificarBtn.disabled = true;
             resultadoDiv.style.display = 'none';
-            document.getElementById('cargarBtn').disabled = true;
+            cargarBtn.disabled = true;
         }
     });
     

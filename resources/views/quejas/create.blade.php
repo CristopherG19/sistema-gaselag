@@ -47,6 +47,14 @@
         border-color: #007bff;
         background-color: #e3f2fd;
     }
+    .oc-option {
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .oc-option:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
 </style>
 @endpush
 
@@ -196,29 +204,46 @@
                         Información Adicional
                     </h5>
                     
-                    @if($remesa)
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle me-2"></i>
-                            <strong>Remesa relacionada:</strong> {{ $remesa->nombre_archivo }} ({{ $remesa->nro_carga }})
+                    <!-- Selección de OC -->
+                    <div class="mb-4">
+                        <label for="oc_id" class="form-label">OC Relacionada (Opcional)</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control @error('oc_id') is-invalid @enderror" 
+                                   id="oc_search" placeholder="Buscar por código de OC, operario o zona..." 
+                                   autocomplete="off">
+                            <button class="btn btn-outline-secondary" type="button" onclick="buscarOC()">
+                                <i class="bi bi-search"></i>
+                            </button>
+                            <input type="hidden" id="oc_id" name="oc_id" value="{{ old('oc_id') }}">
                         </div>
-                        <input type="hidden" name="remesa_id" value="{{ $remesa->id }}">
-                    @else
-                        <div class="mb-3">
-                            <label for="remesa_id" class="form-label">Remesa Relacionada (Opcional)</label>
-                            <select class="form-select @error('remesa_id') is-invalid @enderror" id="remesa_id" name="remesa_id">
-                                <option value="">Seleccionar remesa (opcional)</option>
-                                @foreach(\App\Models\Remesa::where('cargado_al_sistema', true)->get() as $remesaOption)
-                                    <option value="{{ $remesaOption->id }}" {{ old('remesa_id') == $remesaOption->id ? 'selected' : '' }}>
-                                        {{ $remesaOption->nombre_archivo }} ({{ $remesaOption->nro_carga }})
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('remesa_id')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                            <div class="form-text">Selecciona una remesa si la queja está relacionada con ella</div>
+                        @error('oc_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <div class="form-text">Busca y selecciona una OC si la queja está relacionada con una orden de contrastación</div>
+                        
+                        <!-- Resultados de búsqueda -->
+                        <div id="oc_results" class="mt-3" style="display: none;">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Resultados de Búsqueda</h6>
+                                </div>
+                                <div class="card-body" id="oc_results_body">
+                                    <!-- Los resultados se cargarán aquí -->
+                                </div>
+                            </div>
                         </div>
-                    @endif
+                        
+                        <!-- OC seleccionada -->
+                        <div id="oc_selected" class="mt-3" style="display: none;">
+                            <div class="alert alert-success">
+                                <i class="bi bi-check-circle me-2"></i>
+                                <strong>OC seleccionada:</strong> <span id="oc_selected_info"></span>
+                                <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="deseleccionarOC()">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Botones de Acción -->
@@ -359,6 +384,109 @@ document.getElementById('descripcion').addEventListener('input', function() {
         counter.className = 'form-text text-end text-danger';
     } else {
         counter.className = 'form-text text-end';
+    }
+});
+
+// Funciones para búsqueda de OC
+function buscarOC() {
+    const termino = document.getElementById('oc_search').value.trim();
+    
+    if (termino.length < 2) {
+        alert('Por favor ingresa al menos 2 caracteres para buscar');
+        return;
+    }
+    
+    // Mostrar loading
+    const resultsDiv = document.getElementById('oc_results');
+    const resultsBody = document.getElementById('oc_results_body');
+    resultsDiv.style.display = 'block';
+    resultsBody.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Buscando...</span></div><p class="mt-2">Buscando OC...</p></div>';
+    
+    // Realizar petición AJAX
+    fetch('{{ route("quejas.buscar-oc") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            termino: termino
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            mostrarResultadosOC(data.ocs);
+        } else {
+            resultsBody.innerHTML = '<div class="alert alert-warning">No se encontraron OC con ese criterio de búsqueda</div>';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        resultsBody.innerHTML = '<div class="alert alert-danger">Error al buscar OC</div>';
+    });
+}
+
+function mostrarResultadosOC(ocs) {
+    const resultsBody = document.getElementById('oc_results_body');
+    
+    if (ocs.length === 0) {
+        resultsBody.innerHTML = '<div class="alert alert-warning">No se encontraron OC con ese criterio de búsqueda</div>';
+        return;
+    }
+    
+    let html = '<div class="row">';
+    ocs.forEach(oc => {
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card h-100 oc-option" onclick="seleccionarOC(${oc.id}, '${oc.codigo_entrega}', '${oc.nombre_entrega}', '${oc.operario_nombre}', '${oc.zona_asignada || 'Sin zona'}')">
+                    <div class="card-body">
+                        <h6 class="card-title">${oc.codigo_entrega}</h6>
+                        <p class="card-text">
+                            <strong>Nombre:</strong> ${oc.nombre_entrega}<br>
+                            <strong>Operario:</strong> ${oc.operario_nombre}<br>
+                            <strong>Zona:</strong> ${oc.zona_asignada || 'Sin zona'}<br>
+                            <strong>Estado:</strong> <span class="badge bg-${oc.estado_color}">${oc.estado_texto}</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    resultsBody.innerHTML = html;
+}
+
+function seleccionarOC(ocId, codigo, nombre, operario, zona) {
+    // Ocultar resultados
+    document.getElementById('oc_results').style.display = 'none';
+    
+    // Establecer valor en el input hidden
+    document.getElementById('oc_id').value = ocId;
+    
+    // Mostrar OC seleccionada
+    const selectedDiv = document.getElementById('oc_selected');
+    const selectedInfo = document.getElementById('oc_selected_info');
+    selectedInfo.textContent = `${codigo} - ${nombre} (${operario})`;
+    selectedDiv.style.display = 'block';
+    
+    // Limpiar búsqueda
+    document.getElementById('oc_search').value = '';
+}
+
+function deseleccionarOC() {
+    // Limpiar selección
+    document.getElementById('oc_id').value = '';
+    document.getElementById('oc_selected').style.display = 'none';
+    document.getElementById('oc_results').style.display = 'none';
+}
+
+// Búsqueda al presionar Enter
+document.getElementById('oc_search').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        buscarOC();
     }
 });
 </script>

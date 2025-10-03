@@ -435,6 +435,37 @@
         </div>
 
         @if($registros->count() > 0)
+            <!-- Información contextual de la remesa -->
+            @php
+                $primerRegistro = $registros->first();
+                $centroComun = $primerRegistro->centro_servicio ?? 'N/A';
+                $nroCargaComun = $primerRegistro->nro_carga ?? 'N/A';
+                $fechaCargaComun = $primerRegistro->fecha_carga ? $primerRegistro->fecha_carga->format('d/m/Y H:i') : 'N/A';
+            @endphp
+            
+            @if($registros->count() > 1 && $registros->every(function($item) use ($centroComun, $nroCargaComun, $fechaCargaComun) {
+                return $item->centro_servicio === $centroComun && 
+                       $item->nro_carga === $nroCargaComun && 
+                       $item->fecha_carga && $item->fecha_carga->format('d/m/Y H:i') === $fechaCargaComun;
+            }))
+                <div class="alert alert-info mb-3">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Centro de Servicio:</strong> 
+                            <span class="badge bg-success">{{ $centroComun }}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Número de Remesa:</strong> 
+                            <span class="badge bg-primary">{{ $nroCargaComun }}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Fecha de Carga:</strong> 
+                            <span class="badge bg-secondary">{{ $fechaCargaComun }}</span>
+                        </div>
+                    </div>
+                </div>
+            @endif
+            
             <div class="table-responsive">
                 <table class="table custom-table">
                     <thead>
@@ -442,10 +473,8 @@
                             <th style="width: 100px;">OC</th>
                             <th style="width: 100px;">NIS</th>
                             <th style="width: 120px;">Medidor</th>
-                            <th style="width: 200px;">Cliente</th>
-                            <th style="width: 140px;">Centro</th>
-                            <th style="width: 120px;">Remesa</th>
-                            <th style="width: 140px;">Fecha Carga</th>
+                            <th style="width: 250px;">Cliente</th>
+                            <th style="width: 200px;">Dirección</th>
                             <th style="width: 80px;">Estado</th>
                             <th style="width: 100px;">Acciones</th>
                         </tr>
@@ -459,15 +488,11 @@
                                 <td class="font-monospace">{{ $registro->nis ?? 'N/A' }}</td>
                                 <td class="font-monospace">{{ $registro->nromedidor ?? 'N/A' }}</td>
                                 <td title="{{ $registro->nomclie }}">
-                                    {{ Str::limit($registro->nomclie ?? 'N/A', 25) }}
+                                    {{ Str::limit($registro->nomclie ?? 'N/A', 35) }}
                                 </td>
-                                <td>
-                                    <span class="badge-center">
-                                        {{ Str::limit($registro->centro_servicio ?? 'N/A', 15) }}
-                                    </span>
+                                <td title="{{ $registro->dir_pro }}">
+                                    {{ Str::limit($registro->dir_pro ?? 'N/A', 40) }}
                                 </td>
-                                <td class="font-monospace">{{ $registro->nro_carga }}</td>
-                                <td>{{ $registro->fecha_carga->format('d/m/Y H:i') }}</td>
                                 <td class="text-center">
                                     @if($registro->editado)
                                         <i class="bi bi-pencil-square text-warning" title="Editado"></i>

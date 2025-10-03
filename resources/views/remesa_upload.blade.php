@@ -55,7 +55,7 @@
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
                         <i class="bi bi-cloud-upload me-2"></i>
-                        Cargar Archivo DBF
+                        Cargar Archivos DBF
                     </h5>
                 </div>
                 <div class="card-body">
@@ -67,8 +67,8 @@
                                     <i class="bi bi-1"></i>
                                 </div>
                                 <div>
-                                    <h6 class="mb-1">Seleccionar Archivo</h6>
-                                    <small class="text-muted">Elige tu archivo DBF</small>
+                                    <h6 class="mb-1">Seleccionar Archivos</h6>
+                                    <small class="text-muted">Elige uno o más archivos DBF</small>
                                 </div>
                             </div>
                         </div>
@@ -101,40 +101,38 @@
                         @csrf
                         
                         <div class="mb-4">
-                            <label for="archivo_dbf" class="form-label fw-semibold">
+                            <label for="archivos_dbf" class="form-label fw-semibold">
                                 <i class="bi bi-file-earmark-binary me-1"></i>
-                                Selecciona archivo DBF de remesa
+                                Selecciona archivos DBF de remesa
                             </label>
                             <div class="input-group">
                                 <input type="file" 
-                                       class="form-control @error('archivo_dbf') is-invalid @enderror" 
-                                       id="archivo_dbf" 
-                                       name="archivo_dbf" 
+                                       class="form-control @error('archivos_dbf') is-invalid @enderror" 
+                                       id="archivos_dbf" 
+                                       name="archivos_dbf[]" 
                                        accept=".dbf"
+                                       multiple
                                        required>
-                                <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('archivo_dbf').click()">
-                                    <i class="bi bi-folder2-open me-1"></i>Elegir archivo
+                                <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('archivos_dbf').click()">
+                                    <i class="bi bi-folder2-open me-1"></i>Elegir archivos
                                 </button>
                             </div>
                             <div class="form-text">
                                 <i class="bi bi-info-circle me-1"></i>
-                                Solo archivos .dbf (máximo 50MB)
+                                Solo archivos .dbf (máximo 50MB por archivo). Puedes seleccionar múltiples archivos.
                             </div>
-                            @error('archivo_dbf')
+                            @error('archivos_dbf')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
 
                         <!-- File Info Display -->
                         <div id="fileInfo" class="alert alert-info d-none">
-                            <div class="d-flex align-items-center">
+                            <h6 class="mb-3">
                                 <i class="bi bi-file-earmark-text me-2"></i>
-                                <div>
-                                    <strong id="fileName"></strong>
-                                    <br>
-                                    <small id="fileSize" class="text-muted"></small>
-                                </div>
-                            </div>
+                                Archivos seleccionados:
+                            </h6>
+                            <div id="fileList"></div>
                         </div>
 
                         <!-- Action Buttons -->
@@ -143,7 +141,7 @@
                                 <i class="bi bi-arrow-left me-1"></i>Cancelar
                             </a>
                             <button type="submit" class="btn btn-primary" id="submitBtn">
-                                <i class="bi bi-upload me-1"></i>Subir Archivo
+                                <i class="bi bi-upload me-1"></i>Subir Archivos
                             </button>
                         </div>
                     </form>
@@ -162,10 +160,10 @@
                         </div>
                         <div class="card-body">
                             <ol class="mb-0">
-                                <li><strong>Subir archivo:</strong> Se sube y valida el archivo DBF</li>
-                                <li><strong>Vista previa:</strong> Revisa los datos antes de procesar</li>
-                                <li><strong>Configurar:</strong> Selecciona centro de servicio</li>
-                                <li><strong>Procesar:</strong> Se carga al sistema con números OC</li>
+                                <li><strong>Subir archivos:</strong> Se suben y validan uno o más archivos DBF</li>
+                                <li><strong>Procesamiento automático:</strong> Cada archivo se procesa individualmente</li>
+                                <li><strong>Verificación:</strong> Se detectan duplicados automáticamente</li>
+                                <li><strong>Resultado:</strong> Se muestran los archivos procesados y errores</li>
                             </ol>
                         </div>
                     </div>
@@ -180,11 +178,12 @@
                         </div>
                         <div class="card-body">
                             <ul class="mb-0">
-                                <li>Validación automática de archivos</li>
-                                <li>Vista previa antes de procesar</li>
-                                <li>Control de duplicados</li>
+                                <li>Subida múltiple de archivos DBF</li>
+                                <li>Procesamiento automático en lote</li>
+                                <li>Validación individual de cada archivo</li>
+                                <li>Control de duplicados por archivo</li>
+                                <li>Reporte detallado de resultados</li>
                                 <li>Generación automática de números OC</li>
-                                <li>Historial completo de cambios</li>
                             </ul>
                         </div>
                     </div>
@@ -198,29 +197,66 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const fileInput = document.getElementById('archivo_dbf');
+    const fileInput = document.getElementById('archivos_dbf');
     const fileInfo = document.getElementById('fileInfo');
-    const fileName = document.getElementById('fileName');
-    const fileSize = document.getElementById('fileSize');
+    const fileList = document.getElementById('fileList');
     const submitBtn = document.getElementById('submitBtn');
     const uploadForm = document.getElementById('uploadForm');
 
     // File selection handler
     fileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            fileName.textContent = file.name;
-            fileSize.textContent = formatFileSize(file.size);
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+            displayFileList(files);
             fileInfo.classList.remove('d-none');
         } else {
             fileInfo.classList.add('d-none');
         }
     });
 
+    // Display multiple files
+    function displayFileList(files) {
+        fileList.innerHTML = '';
+        files.forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'd-flex align-items-center justify-content-between mb-2 p-2 border rounded';
+            fileItem.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-file-earmark-binary text-primary me-2"></i>
+                    <div>
+                        <div class="fw-semibold">${file.name}</div>
+                        <small class="text-muted">${formatFileSize(file.size)}</small>
+                    </div>
+                </div>
+                <span class="badge bg-primary">${index + 1}</span>
+            `;
+            fileList.appendChild(fileItem);
+        });
+        
+        // Add summary
+        const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+        const summary = document.createElement('div');
+        summary.className = 'mt-3 p-2 bg-light rounded';
+        summary.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <span><strong>Total: ${files.length} archivo${files.length > 1 ? 's' : ''}</strong></span>
+                <span class="text-muted">${formatFileSize(totalSize)}</span>
+            </div>
+        `;
+        fileList.appendChild(summary);
+    }
+
     // Form submission handler
     uploadForm.addEventListener('submit', function(e) {
+        const files = fileInput.files;
+        if (files.length === 0) {
+            e.preventDefault();
+            alert('Por favor selecciona al menos un archivo.');
+            return;
+        }
+        
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Subiendo...';
+        submitBtn.innerHTML = `<i class="bi bi-hourglass-split me-1"></i>Subiendo ${files.length} archivo${files.length > 1 ? 's' : ''}...`;
     });
 
     // Format file size

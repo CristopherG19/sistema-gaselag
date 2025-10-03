@@ -21,6 +21,7 @@ class Queja extends Model
         'usuario_id',
         'asignado_a',
         'remesa_id',
+        'oc_id',
         'fecha_creacion',
         'fecha_asignacion',
         'fecha_resolucion',
@@ -48,6 +49,11 @@ class Queja extends Model
     public function remesa(): BelongsTo
     {
         return $this->belongsTo(Remesa::class);
+    }
+
+    public function oc(): BelongsTo
+    {
+        return $this->belongsTo(EntregaCarga::class, 'oc_id');
     }
 
     // Scopes
@@ -79,6 +85,11 @@ class Queja extends Model
     public function scopeDelUsuario($query, $usuarioId)
     {
         return $query->where('usuario_id', $usuarioId);
+    }
+
+    public function scopeDeOC($query, $ocId)
+    {
+        return $query->where('oc_id', $ocId);
     }
 
     // Accessors

@@ -54,8 +54,9 @@ Route::middleware(['auth'])->group(function () {
         
         // Nuevo flujo de dos pasos
         Route::post('/remesa/subir-pendiente', [RemesaController::class, 'subirComoPendiente'])->name('remesa.subir.pendiente');
-        Route::get('/remesa/procesar', [RemesaController::class, 'procesarForm'])->name('remesa.procesar.form');
+        Route::get('/remesa/procesar/{id?}', [RemesaController::class, 'procesarForm'])->name('remesa.procesar.form');
         Route::post('/remesa/procesar', [RemesaController::class, 'procesarPendiente'])->name('remesa.procesar');
+        Route::delete('/remesa/eliminar-pendiente/{id}', [RemesaController::class, 'eliminarPendiente'])->name('remesa.eliminar.pendiente');
         
         Route::get('/remesa/cancelar', [RemesaController::class, 'cancelar'])->name('remesa.cancelar');
         
@@ -92,12 +93,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('quejas/{queja}/resolver', [GestionQuejasController::class, 'resolver'])->name('quejas.resolver');
     Route::post('quejas/{queja}/cambiar-estado', [GestionQuejasController::class, 'cambiarEstado'])->name('quejas.cambiar-estado');
     Route::get('quejas/estadisticas', [GestionQuejasController::class, 'estadisticas'])->name('quejas.estadisticas');
+    Route::post('quejas/buscar-oc', [GestionQuejasController::class, 'buscarOC'])->name('quejas.buscar-oc');
 });
 
 // === RUTAS DE GESTIÓN DE ENTREGAS (ADMINISTRADORES Y USUARIOS NORMALES) ===
 Route::middleware(['auth', 'role:admin|usuario'])->group(function () {
     Route::resource('entregas', GestionEntregasController::class);
     Route::get('entregas/estadisticas', [GestionEntregasController::class, 'estadisticas'])->name('entregas.estadisticas');
+    Route::post('entregas/filtrar-remesas', [GestionEntregasController::class, 'filtrarRemesas'])->name('entregas.filtrar-remesas');
 });
 
 // === RUTAS ESPECÍFICAS PARA OPERARIOS DE CAMPO ===

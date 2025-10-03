@@ -178,24 +178,32 @@
                         <!-- Información general de la remesa -->
                         <div class="row mb-4">
                             <div class="col-md-12">
-                                <div class="card bg-light">
+                                <div class="card bg-primary text-white">
                                     <div class="card-body">
-                                        <div class="row">
-                                            <div class="col-md-3">
-                                                <strong>Número de Carga:</strong><br>
-                                                <span class="badge bg-info fs-6">{{ $nroCarga }}</span>
+                                        <div class="row align-items-center">
+                                            <div class="col-md-8">
+                                                <h5 class="mb-1">
+                                                    <i class="bi bi-file-earmark-text me-2"></i>
+                                                    Remesa {{ $nroCarga }}
+                                                </h5>
+                                                <p class="mb-0 opacity-75">
+                                                    <i class="bi bi-file me-1"></i>{{ $infoRemesa->nombre_archivo }} 
+                                                    <span class="ms-3">
+                                                        <i class="bi bi-calendar me-1"></i>{{ $infoRemesa->fecha_carga->format('d/m/Y H:i') }}
+                                                    </span>
+                                                </p>
                                             </div>
-                                            <div class="col-md-3">
-                                                <strong>Archivo:</strong><br>
-                                                {{ $infoRemesa->nombre_archivo }}
-                                            </div>
-                                            <div class="col-md-3">
-                                                <strong>Fecha de Carga:</strong><br>
-                                                {{ $infoRemesa->fecha_carga->format('d/m/Y H:i') }}
-                                            </div>
-                                            <div class="col-md-3">
-                                                <strong>Total de Registros:</strong><br>
-                                                <span class="badge bg-secondary">{{ $registros->total() }}</span>
+                                            <div class="col-md-4 text-end">
+                                                <div class="d-flex justify-content-end gap-3">
+                                                    <div class="text-center">
+                                                        <div class="h4 mb-0">{{ $registros->total() }}</div>
+                                                        <small>Total Registros</small>
+                                                    </div>
+                                                    <div class="text-center">
+                                                        <div class="h4 mb-0">{{ $infoRemesa->centro_servicio ?? 'N/A' }}</div>
+                                                        <small>Centro</small>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -247,53 +255,65 @@
                             <table class="table table-striped table-hover table-sm">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th>ID</th>
-                                        <th>NIS</th>
-                                        <th>Medidor</th>
-                                        <th>Cliente</th>
-                                        <th>Dirección</th>
-                                        <th>Marca</th>
-                                        <th>Teléfono</th>
-                                        <th>Estado</th>
-                                        <th>Acciones</th>
+                                        <th style="width: 80px;">ID</th>
+                                        <th style="width: 100px;">NIS</th>
+                                        <th style="width: 120px;">Medidor</th>
+                                        <th style="width: 250px;">Cliente</th>
+                                        <th style="width: 300px;">Dirección</th>
+                                        <th style="width: 100px;">Marca</th>
+                                        <th style="width: 100px;">Teléfono</th>
+                                        <th style="width: 80px;">Estado</th>
+                                        <th style="width: 120px;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @forelse($registros as $registro)
                                         <tr>
-                                            <td>{{ $registro->id }}</td>
                                             <td>
-                                                <code>{{ $registro->nis }}</code>
+                                                <span class="badge bg-secondary">#{{ $registro->id }}</span>
                                             </td>
                                             <td>
-                                                <small class="text-muted">{{ $registro->nromedidor }}</small>
+                                                <code class="text-primary fw-bold">{{ $registro->nis }}</code>
                                             </td>
-                                            <td class="campo-largo" title="{{ $registro->nomcli }}">
-                                                {{ $registro->nomcli }}
-                                            </td>
-                                            <td class="campo-largo" title="{{ $registro->dir_pro }}">
-                                                {{ $registro->dir_pro }}
-                                            </td>
-                                            <td>{{ $registro->marcamed }}</td>
-                                            <td>{{ $registro->tel_clie ?: '-' }}</td>
                                             <td>
+                                                <span class="font-monospace">{{ $registro->nromedidor }}</span>
+                                            </td>
+                                            <td title="{{ $registro->nomcli }}">
+                                                <div class="text-truncate" style="max-width: 240px;">
+                                                    {{ $registro->nomcli }}
+                                                </div>
+                                            </td>
+                                            <td title="{{ $registro->dir_pro }}">
+                                                <div class="text-truncate" style="max-width: 290px;">
+                                                    {{ $registro->dir_pro }}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">{{ $registro->marcamed ?: '-' }}</small>
+                                            </td>
+                                            <td>
+                                                <span class="font-monospace">{{ $registro->tel_clie ?: '-' }}</span>
+                                            </td>
+                                            <td class="text-center">
                                                 @if($registro->editado)
                                                     <span class="badge bg-warning text-dark">
-                                                        <i class="bi bi-pencil"></i> Editado
+                                                        <i class="bi bi-pencil"></i>
                                                     </span>
                                                 @else
-                                                    <span class="badge bg-success">Original</span>
+                                                    <span class="badge bg-success">
+                                                        <i class="bi bi-check"></i>
+                                                    </span>
                                                 @endif
                                             </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm">
                                                     <a href="{{ route('remesa.editar.registro', $registro->id) }}" 
-                                                       class="btn btn-outline-primary" title="Editar">
+                                                       class="btn btn-outline-primary btn-sm" title="Editar">
                                                         <i class="bi bi-pencil"></i>
                                                     </a>
                                                     @if($registro->editado)
                                                         <a href="{{ route('remesa.ver.historial', $registro->id) }}" 
-                                                           class="btn btn-outline-info" title="Ver Historial">
+                                                           class="btn btn-outline-info btn-sm" title="Historial">
                                                             <i class="bi bi-clock-history"></i>
                                                         </a>
                                                     @endif

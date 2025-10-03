@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Queja;
 use App\Models\Usuario;
 use App\Models\Remesa;
+use App\Models\EntregaCarga;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -22,7 +23,7 @@ class GestionQuejasController extends Controller
     public function index(Request $request)
     {
         $usuario = Auth::user();
-        $query = Queja::with(['usuario', 'asignadoA', 'remesa']);
+        $query = Queja::with(['usuario', 'asignadoA', 'remesa', 'oc.operario']);
 
         // Filtros según el rol
         if ($usuario->isOperarioCampo()) {
@@ -101,6 +102,7 @@ class GestionQuejasController extends Controller
             'tipo' => 'required|in:general,tecnica,administrativa,sistema',
             'prioridad' => 'required|in:baja,media,alta,critica',
             'remesa_id' => 'nullable|exists:remesas,id',
+            'oc_id' => 'nullable|exists:entregas_cargas,id',
         ]);
 
         if ($validator->fails()) {
@@ -116,6 +118,7 @@ class GestionQuejasController extends Controller
             'prioridad' => $request->prioridad,
             'usuario_id' => Auth::id(),
             'remesa_id' => $request->remesa_id,
+            'oc_id' => $request->oc_id,
             'fecha_creacion' => now(),
         ]);
 
@@ -139,7 +142,7 @@ class GestionQuejasController extends Controller
             abort(403, 'No tienes permisos para ver esta queja.');
         }
 
-        $queja->load(['usuario', 'asignadoA', 'remesa']);
+        $queja->load(['usuario', 'asignadoA', 'remesa', 'oc.operario']);
 
         return view('quejas.show', compact('queja'));
     }
@@ -281,5 +284,49 @@ class GestionQuejasController extends Controller
         ];
 
         return response()->json($estadisticas);
+    }
+
+    /**
+     * Buscar OC para asociar a queja
+     */
+    public function buscarOC(Request $request)
+    {
+        $termino = $request->get('termino');
+        
+        if (strlen($termino) < 2) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El término de búsqueda debe tener al menos 2 caracteres'
+            ]);
+        }
+
+        $ocs = EntregaCarga::with(['operario', 'remesa'])
+            ->where(function($query) use ($termino) {
+                $query->where('codigo_entrega', 'like', "%{$termino}%")
+                      ->orWhere('nombre_entrega', 'like', "%{$termino}%")
+                      ->orWhere('zona_asignada', 'like', "%{$termino}%")
+                      ->orWhereHas('operario', function($q) use ($termino) {
+                          $q->where('nombre', 'like', "%{$termino}%")
+                            ->orWhere('apellidos', 'like', "%{$termino}%");
+                      });
+            })
+            ->limit(10)
+            ->get()
+            ->map(function($oc) {
+                return [
+                    'id' => $oc->id,
+                    'codigo_entrega' => $oc->codigo_entrega,
+                    'nombre_entrega' => $oc->nombre_entrega,
+                    'operario_nombre' => $oc->operario ? $oc->operario->nombre . ' ' . $oc->operario->apellidos : 'Sin operario',
+                    'zona_asignada' => $oc->zona_asignada,
+                    'estado_texto' => $oc->estado_texto,
+                    'estado_color' => $oc->estado_color,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'ocs' => $ocs
+        ]);
     }
 }

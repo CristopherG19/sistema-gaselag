@@ -79,11 +79,24 @@ class GestionEntregasController extends Controller
         $remesaId = $request->get('remesa_id');
         $remesa = $remesaId ? Remesa::find($remesaId) : null;
         
+        // Obtener todas las remesas disponibles para selección
+        $remesas = Remesa::where('cargado_al_sistema', true)
+            ->orderBy('fecha_carga', 'desc')
+            ->get();
+        
+        // Obtener centros de servicio únicos
+        $centrosServicio = Remesa::where('cargado_al_sistema', true)
+            ->whereNotNull('centro_servicio')
+            ->distinct()
+            ->pluck('centro_servicio')
+            ->sort()
+            ->values();
+        
         $operarios = Usuario::where('rol', 'operario_campo')
             ->where('activo', true)
             ->get();
 
-        return view('entregas.create', compact('remesa', 'operarios'));
+        return view('entregas.create', compact('remesa', 'remesas', 'centrosServicio', 'operarios'));
     }
 
     /**
@@ -295,5 +308,34 @@ class GestionEntregasController extends Controller
         ];
 
         return response()->json($estadisticas);
+    }
+
+    /**
+     * Filtrar remesas vía AJAX
+     */
+    public function filtrarRemesas(Request $request)
+    {
+        $query = Remesa::where('cargado_al_sistema', true);
+
+        // Filtro por centro de servicio
+        if ($request->filled('cs')) {
+            $query->where('centro_servicio', $request->cs);
+        }
+
+        // Filtro por fecha desde
+        if ($request->filled('fecha_desde')) {
+            $query->whereDate('fecha_carga', '>=', $request->fecha_desde);
+        }
+
+        // Filtro por fecha hasta
+        if ($request->filled('fecha_hasta')) {
+            $query->whereDate('fecha_carga', '<=', $request->fecha_hasta);
+        }
+
+        $remesas = $query->orderBy('fecha_carga', 'desc')->get();
+
+        $html = view('entregas.partials.lista-remesas', compact('remesas'))->render();
+
+        return response()->json(['html' => $html]);
     }
 }

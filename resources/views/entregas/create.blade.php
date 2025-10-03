@@ -84,24 +84,54 @@
                         <i class="bi bi-file-earmark me-2"></i>
                         Seleccionar Remesa
                     </h5>
-                    <div class="row">
-                        @foreach($remesas as $remesa)
-                            <div class="col-md-6 mb-3">
-                                <div class="remesa-card" onclick="selectRemesa({{ $remesa->id }})">
-                                    <input type="radio" name="remesa_id" value="{{ $remesa->id }}" 
-                                           id="remesa_{{ $remesa->id }}" style="display: none;">
-                                    <div class="d-flex align-items-center">
-                                        <i class="bi bi-file-earmark-text me-3 text-primary" style="font-size: 2rem;"></i>
-                                        <div>
-                                            <h6 class="mb-1">{{ $remesa->nombre_archivo }}</h6>
-                                            <small class="text-muted">Carga #{{ $remesa->nro_carga }}</small><br>
-                                            <small class="text-muted">{{ $remesa->fecha_carga->format('d/m/Y') }}</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
+                    
+                    <!-- Filtros de Búsqueda -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <label for="filtro_cs" class="form-label">Centro de Servicio (CS)</label>
+                            <select class="form-select" id="filtro_cs" name="filtro_cs">
+                                <option value="">Todos los CS</option>
+                                @foreach($centrosServicio as $cs)
+                                    <option value="{{ $cs }}">{{ $cs }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="filtro_fecha_desde" class="form-label">Fecha Desde</label>
+                            <input type="date" class="form-control" id="filtro_fecha_desde" name="filtro_fecha_desde">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="filtro_fecha_hasta" class="form-label">Fecha Hasta</label>
+                            <input type="date" class="form-control" id="filtro_fecha_hasta" name="filtro_fecha_hasta">
+                        </div>
                     </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <button type="button" class="btn btn-primary" onclick="filtrarRemesas()">
+                                <i class="bi bi-search me-1"></i>
+                                Filtrar Remesas
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary ms-2" onclick="limpiarFiltros()">
+                                <i class="bi bi-x-circle me-1"></i>
+                                Limpiar Filtros
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Loading indicator -->
+                    <div id="loading-remesas" class="text-center d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2">Cargando remesas...</p>
+                    </div>
+                    
+                    <!-- Lista de Remesas Agrupadas -->
+                    <div id="lista-remesas">
+                        @include('entregas.partials.lista-remesas', ['remesas' => $remesas])
+                    </div>
+                    
                     @error('remesa_id')
                         <div class="text-danger small">{{ $message }}</div>
                     @enderror
@@ -268,6 +298,48 @@ function selectOperario(operarioId) {
     // Seleccionar nueva opción
     document.querySelector(`.operario-card[onclick="selectOperario(${operarioId})"]`).classList.add('selected');
     document.getElementById(`operario_${operarioId}`).checked = true;
+}
+
+// Funciones de filtrado
+function filtrarRemesas() {
+    const cs = document.getElementById('filtro_cs').value;
+    const fechaDesde = document.getElementById('filtro_fecha_desde').value;
+    const fechaHasta = document.getElementById('filtro_fecha_hasta').value;
+    
+    // Mostrar loading
+    document.getElementById('loading-remesas').classList.remove('d-none');
+    document.getElementById('lista-remesas').innerHTML = '';
+    
+    // Realizar petición AJAX
+    fetch('{{ route("entregas.filtrar-remesas") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            cs: cs,
+            fecha_desde: fechaDesde,
+            fecha_hasta: fechaHasta
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('loading-remesas').classList.add('d-none');
+        document.getElementById('lista-remesas').innerHTML = data.html;
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('loading-remesas').classList.add('d-none');
+        document.getElementById('lista-remesas').innerHTML = '<div class="alert alert-danger">Error al cargar las remesas</div>';
+    });
+}
+
+function limpiarFiltros() {
+    document.getElementById('filtro_cs').value = '';
+    document.getElementById('filtro_fecha_desde').value = '';
+    document.getElementById('filtro_fecha_hasta').value = '';
+    filtrarRemesas();
 }
 
 // Validación del formulario
