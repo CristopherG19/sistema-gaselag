@@ -1236,13 +1236,8 @@ class RemesaController extends Controller
         }
         
         if ($request->isMethod('post')) {
-            // Procesar actualización
+            // Procesar actualización - Solo validar campos editables
             $request->validate([
-                'nis' => 'required|string|max:255',
-                'nomclie' => 'required|string|max:255',
-                'dir_proc' => 'required|string|max:255',
-                'tel_clie' => 'nullable|string|max:20',
-                'nromedidor' => 'nullable|string|max:50',
                 'retfech' => 'nullable|date',
                 'rethor' => 'nullable|date_format:H:i',
                 'fechaprog' => 'nullable|date',
@@ -1262,19 +1257,29 @@ class RemesaController extends Controller
                 $horaprog = (float)$hours + ((float)$minutes / 60);
             }
             
-            // Actualizar el registro
+            // Guardar campos anteriores para comparación
+            $camposOriginales = [
+                'retfech' => $registro->retfech,
+                'rethor' => $registro->rethor,
+                'fechaprog' => $registro->fechaprog,
+                'horaprog' => $registro->horaprog,
+            ];
+            
+            // Actualizar solo los campos editables
             $registro->update([
-                'nis' => $request->nis,
-                'nomclie' => $request->nomclie,
-                'dir_proc' => $request->dir_proc,
-                'tel_clie' => $request->tel_clie,
-                'nromedidor' => $request->nromedidor,
                 'retfech' => $request->retfech,
                 'rethor' => $rethor,
                 'fechaprog' => $request->fechaprog,  
                 'horaprog' => $horaprog,
                 'editado' => true,
                 'fecha_edicion' => now(),
+                'editado_por' => Auth::id(),
+                'campos_editados' => array_keys(array_filter([
+                    'retfech' => $camposOriginales['retfech'] != $request->retfech,
+                    'rethor' => $camposOriginales['rethor'] != $rethor,
+                    'fechaprog' => $camposOriginales['fechaprog'] != $request->fechaprog,
+                    'horaprog' => $camposOriginales['horaprog'] != $horaprog,
+                ]))
             ]);
             
             return redirect()->route('remesa.ver.registros', $registro->nro_carga)
