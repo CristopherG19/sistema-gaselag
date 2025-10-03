@@ -82,6 +82,48 @@
                                 <div class="text-danger small">{{ $message }}</div>
                             @enderror
                         </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="retfech" class="form-label">Fecha de Retiro</label>
+                                <input type="date" class="form-control" id="retfech" name="retfech" 
+                                       value="{{ old('retfech', $registro->retfech ? \Carbon\Carbon::parse($registro->retfech)->format('Y-m-d') : '') }}">
+                                @error('retfech')
+                                    <div class="text-danger small">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="rethor" class="form-label">Hora de Retiro</label>
+                                <input type="time" class="form-control" id="rethor" name="rethor" 
+                                       value="{{ old('rethor', $registro->rethor ? sprintf('%02d:%02d', floor($registro->rethor), ($registro->rethor - floor($registro->rethor)) * 60) : '') }}"
+                                       step="60">
+                                @error('rethor')
+                                    <div class="text-danger small">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="fechaprog" class="form-label">Fecha Programada</label>
+                                <input type="date" class="form-control" id="fechaprog" name="fechaprog" 
+                                       value="{{ old('fechaprog', $registro->fechaprog ? \Carbon\Carbon::parse($registro->fechaprog)->format('Y-m-d') : '') }}">
+                                @error('fechaprog')
+                                    <div class="text-danger small">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="horaprog" class="form-label">Hora Programada</label>
+                                <input type="time" class="form-control" id="horaprog" name="horaprog" 
+                                       value="{{ old('horaprog', $registro->horaprog ? sprintf('%02d:%02d', floor($registro->horaprog), ($registro->horaprog - floor($registro->horaprog)) * 60) : '') }}"
+                                       step="60">
+                                @error('horaprog')
+                                    <div class="text-danger small">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
                         
                         <div class="d-flex justify-content-between">
                             <a href="{{ route('remesa.ver.registros', $registro->nro_carga) }}" class="btn btn-outline-secondary">

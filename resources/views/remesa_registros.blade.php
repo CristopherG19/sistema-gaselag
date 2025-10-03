@@ -503,7 +503,8 @@
         }
 
         function verDetalles(id) {
-            alert('Función ver detalles - ID: ' + id + '\n(Función por implementar)');
+            const url = '{{ route("remesa.ver.detalle", ":id") }}'.replace(':id', id);
+            window.location.href = url;
         }
     </script>
 @endsection

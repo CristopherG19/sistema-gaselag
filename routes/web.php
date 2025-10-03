@@ -41,6 +41,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/remesa/lista', [RemesaController::class, 'lista'])->name('remesa.lista');
     Route::get('/remesas/general', [RemesaController::class, 'vistaGeneral'])->name('remesas.general');
     Route::get('/remesa/{nroCarga}/registros', [RemesaController::class, 'verRegistros'])->name('remesa.ver.registros');
+    Route::get('/remesa/registro/{id}/detalle', [RemesaController::class, 'verDetalleRegistro'])->name('remesa.ver.detalle');
     Route::get('/remesa/registro/{id}/historial', [RemesaController::class, 'verHistorial'])->name('remesa.ver.historial');
     
     // Rutas que solo pueden usar administradores (temporalmente sin middleware)

@@ -1243,7 +1243,24 @@ class RemesaController extends Controller
                 'dir_proc' => 'required|string|max:255',
                 'tel_clie' => 'nullable|string|max:20',
                 'nromedidor' => 'nullable|string|max:50',
+                'retfech' => 'nullable|date',
+                'rethor' => 'nullable|date_format:H:i',
+                'fechaprog' => 'nullable|date',
+                'horaprog' => 'nullable|date_format:H:i',
             ]);
+            
+            // Procesar las horas a formato decimal
+            $rethor = null;
+            if ($request->rethor) {
+                [$hours, $minutes] = explode(':', $request->rethor);
+                $rethor = (float)$hours + ((float)$minutes / 60);
+            }
+            
+            $horaprog = null;
+            if ($request->horaprog) {
+                [$hours, $minutes] = explode(':', $request->horaprog);
+                $horaprog = (float)$hours + ((float)$minutes / 60);
+            }
             
             // Actualizar el registro
             $registro->update([
@@ -1252,6 +1269,10 @@ class RemesaController extends Controller
                 'dir_proc' => $request->dir_proc,
                 'tel_clie' => $request->tel_clie,
                 'nromedidor' => $request->nromedidor,
+                'retfech' => $request->retfech,
+                'rethor' => $rethor,
+                'fechaprog' => $request->fechaprog,  
+                'horaprog' => $horaprog,
                 'editado' => true,
                 'fecha_edicion' => now(),
             ]);
@@ -1269,6 +1290,21 @@ class RemesaController extends Controller
     public function actualizarRegistro(Request $request, int $id)
     {
         return $this->editarRegistro($request, $id);
+    }
+
+    /**
+     * Ver todos los detalles de un registro específico
+     */
+    public function verDetalleRegistro(Request $request, int $id)
+    {
+        $registro = Remesa::findOrFail($id);
+        
+        // Verificar permisos: administradores ven todo, usuarios normales solo sus registros
+        if (!Auth::user()->isAdmin() && $registro->usuario_id !== Auth::id()) {
+            abort(403, 'No tienes permisos para ver este registro.');
+        }
+        
+        return view('remesa_detalle_registro', compact('registro'));
     }
 
     /**

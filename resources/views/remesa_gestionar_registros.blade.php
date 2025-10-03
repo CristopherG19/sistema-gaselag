@@ -222,8 +222,8 @@
 @push('scripts')
 <script>
 function verDetalles(id) {
-    // Implementar modal o vista de detalles
-    alert('Ver detalles del registro: ' + id);
+    const url = '{{ route("remesa.ver.detalle", ":id") }}'.replace(':id', id);
+    window.location.href = url;
 }
 
 function eliminarRegistro(id) {
