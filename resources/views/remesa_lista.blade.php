@@ -139,6 +139,19 @@
                             </div>
                         @endif
 
+                        @if ($errors->any())
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <strong>Error:</strong> Se encontraron los siguientes problemas:
+                                <ul class="mb-0 mt-2">
+                                    @foreach ($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+
                         <!-- Filtros -->
                         <div class="row mb-3">
                             <div class="col-md-6">
@@ -241,11 +254,19 @@
                                                         @endif
                                                     @else
                                                         @if(Auth::user()->isAdmin())
-                                                            <a href="{{ route('remesa.procesar.form') }}" 
-                                                               class="btn btn-success btn-sm" 
-                                                               title="Procesar remesa pendiente">
-                                                                <i class="bi bi-play-circle"></i> Procesar
-                                                            </a>
+                                                            <div class="btn-group btn-group-sm" role="group">
+                                                                <a href="{{ route('remesa.procesar.form', ['id' => $remesa->primer_id ?? $remesa->id]) }}" 
+                                                                   class="btn btn-success" 
+                                                                   title="Procesar remesa pendiente">
+                                                                    <i class="bi bi-play-circle"></i> Procesar
+                                                                </a>
+                                                                <button type="button" 
+                                                                        class="btn btn-danger" 
+                                                                        title="Eliminar remesa pendiente"
+                                                                        onclick="confirmarEliminacion({{ $remesa->primer_id ?? $remesa->id }}, '{{ $remesa->nro_carga }}')">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            </div>
                                                         @else
                                                             <span class="text-muted">Pendiente</span>
                                                         @endif
@@ -275,4 +296,42 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal de confirmación para eliminar -->
+    <div class="modal fade" id="confirmarEliminacionModal" tabindex="-1" aria-labelledby="confirmarEliminacionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmarEliminacionModalLabel">
+                        <i class="bi bi-exclamation-triangle text-warning"></i> Confirmar Eliminación
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Estás seguro de que deseas eliminar la remesa pendiente <strong id="nroCargaEliminar"></strong>?</p>
+                    <p class="text-muted">Esta acción no se puede deshacer.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <form id="formEliminar" method="POST" style="display: inline;">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Eliminar
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function confirmarEliminacion(remesaId, nroCarga) {
+        document.getElementById('nroCargaEliminar').textContent = nroCarga;
+        document.getElementById('formEliminar').action = '{{ route("remesa.eliminar.pendiente", ":id") }}'.replace(':id', remesaId);
+        
+        const modal = new bootstrap.Modal(document.getElementById('confirmarEliminacionModal'));
+        modal.show();
+    }
+    </script>
 @endsection

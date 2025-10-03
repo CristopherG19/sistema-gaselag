@@ -99,6 +99,18 @@ class RemesaController extends Controller
                 ->withErrors(['error' => 'No hay datos para mostrar. Carga un archivo primero.']);
         }
         
+        // Verificar duplicados automáticamente para todos los centros
+        $duplicados = [];
+        foreach ($centrosDisponibles as $centro) {
+            $existe = Remesa::where('nro_carga', $nroCarga)
+                           ->where('centro_servicio', $centro)
+                           ->where('usuario_id', Auth::id())
+                           ->exists();
+            if ($existe) {
+                $duplicados[] = $centro;
+            }
+        }
+        
         // Preparar paginación
         $perPage = 50;
         $currentPage = max(1, (int)$request->get('page', 1));
@@ -117,6 +129,7 @@ class RemesaController extends Controller
             'nombre_archivo' => $nombreArchivo,
             'centros_disponibles' => $centrosDisponibles,
             'columns' => !empty($rows) ? array_keys($rows[0]) : [],
+            'duplicados' => $duplicados,
         ]);
     }
 
@@ -141,12 +154,83 @@ class RemesaController extends Controller
     }
 
     /**
-     * SUBIR ARCHIVO COMO PENDIENTE - PRIMER PASO
+     * SUBIR ARCHIVOS COMO PENDIENTES - PRIMER PASO (MÚLTIPLES ARCHIVOS)
      */
     public function subirComoPendiente(Request $request)
     {
         Log::info('=== SUBIR COMO PENDIENTE INICIADO ===', ['user' => Auth::id()]);
         
+        // Validar si es múltiple o archivo único
+        if ($request->hasFile('archivos_dbf')) {
+            return $this->subirMultiplesArchivos($request);
+        } else {
+            return $this->subirArchivoUnico($request);
+        }
+    }
+
+    /**
+     * SUBIR MÚLTIPLES ARCHIVOS COMO PENDIENTES
+     */
+    private function subirMultiplesArchivos(Request $request)
+    {
+        Log::info('=== SUBIR MÚLTIPLES ARCHIVOS INICIADO ===', ['user' => Auth::id()]);
+        
+        $request->validate([
+            'archivos_dbf' => 'required|array|min:1|max:10', // Máximo 10 archivos
+            'archivos_dbf.*' => 'required|file|mimes:dbf|max:51200', // 50MB max por archivo
+        ]);
+
+        $archivosProcesados = [];
+        $errores = [];
+
+        try {
+            $archivos = $request->file('archivos_dbf');
+            
+            foreach ($archivos as $index => $file) {
+                try {
+                    $resultado = $this->procesarArchivoIndividual($file, $index);
+                    if ($resultado['success']) {
+                        $archivosProcesados[] = $resultado['data'];
+                    } else {
+                        $errores[] = $resultado['error'];
+                    }
+                } catch (\Exception $e) {
+                    $errores[] = "Error en archivo {$file->getClientOriginalName()}: " . $e->getMessage();
+                    Log::error('Error procesando archivo individual', [
+                        'archivo' => $file->getClientOriginalName(),
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Preparar mensaje de resultado
+            $mensaje = "Se procesaron " . count($archivosProcesados) . " archivo(s) correctamente.";
+            if (!empty($errores)) {
+                $mensaje .= " Errores: " . implode(', ', $errores);
+            }
+
+            if (empty($archivosProcesados)) {
+                return back()->withErrors(['error' => 'No se pudo procesar ningún archivo. ' . implode(', ', $errores)]);
+            }
+
+            return redirect()->route('remesa.lista')
+                ->with('success', $mensaje);
+
+        } catch (\Exception $e) {
+            Log::error('Error general en subida múltiple', [
+                'error' => $e->getMessage(),
+                'user' => Auth::id()
+            ]);
+            
+            return back()->withErrors(['error' => 'Error al procesar los archivos: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * SUBIR ARCHIVO ÚNICO COMO PENDIENTE (MÉTODO ORIGINAL)
+     */
+    private function subirArchivoUnico(Request $request)
+    {
         $request->validate([
             'archivo_dbf' => 'required|file|mimes:dbf|max:51200', // 50MB max
         ]);
@@ -215,12 +299,21 @@ class RemesaController extends Controller
                 ];
             }
 
+            // Asegurar que $rows sea serializable
+            $datosParaGuardar = is_array($rows) ? $rows : json_decode($rows, true);
+            
+            Log::info('Guardando remesa pendiente', [
+                'nro_carga' => $nroCarga,
+                'total_rows' => is_array($datosParaGuardar) ? count($datosParaGuardar) : 'not array',
+                'first_row_type' => is_array($datosParaGuardar) && count($datosParaGuardar) > 0 ? gettype($datosParaGuardar[0]) : 'no data'
+            ]);
+
             $remesaPendiente = RemesaPendiente::create([
                 'usuario_id' => Auth::id(),
                 'nombre_archivo' => $file->getClientOriginalName(),
                 'nro_carga' => $nroCarga,
                 'fecha_carga' => now(),
-                'datos_dbf' => $rows, // Guardar todos los registros, no solo el primero
+                'datos_dbf' => $datosParaGuardar, // Guardar todos los registros, no solo el primero
             ]);
 
             // Guardar datos en sesión para el siguiente paso
@@ -253,24 +346,121 @@ class RemesaController extends Controller
     }
 
     /**
+     * PROCESAR ARCHIVO INDIVIDUAL (HELPER PARA MÚLTIPLES ARCHIVOS)
+     */
+    private function procesarArchivoIndividual($file, $index)
+    {
+        try {
+            $tempPath = $file->store('temp_dbf');
+            $fullPath = Storage::path($tempPath);
+            
+            Log::info('Procesando archivo individual', [
+                'archivo' => $file->getClientOriginalName(),
+                'temp_path' => $tempPath,
+                'index' => $index
+            ]);
+
+            // Parsear archivo DBF
+            $parser = new DbfParser();
+            $parsed = $parser->parseFile($fullPath);
+            $rows = $parsed['rows'] ?? [];
+            
+            if (empty($rows)) {
+                Storage::delete($tempPath);
+                return [
+                    'success' => false,
+                    'error' => "No se pudieron extraer datos del archivo {$file->getClientOriginalName()}"
+                ];
+            }
+
+            // Extraer número de carga
+            $nroCarga = $this->extractNroCarga($rows[0] ?? []);
+            
+            $remesaPendiente = RemesaPendiente::create([
+                'nro_carga' => $nroCarga,
+                'nombre_archivo' => $file->getClientOriginalName(),
+                'fecha_carga' => now(),
+                'usuario_id' => Auth::id(),
+                'datos_dbf' => $rows, // Guardar todos los registros, no solo metadatos
+            ]);
+
+            Log::info('Archivo individual procesado exitosamente', [
+                'remesa_id' => $remesaPendiente->id,
+                'nro_carga' => $nroCarga,
+                'total_rows' => count($rows)
+            ]);
+
+            return [
+                'success' => true,
+                'data' => [
+                    'id' => $remesaPendiente->id,
+                    'nro_carga' => $nroCarga,
+                    'nombre_archivo' => $file->getClientOriginalName(),
+                    'total_rows' => count($rows)
+                ]
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error procesando archivo individual', [
+                'archivo' => $file->getClientOriginalName(),
+                'error' => $e->getMessage()
+            ]);
+            
+            return [
+                'success' => false,
+                'error' => "Error procesando {$file->getClientOriginalName()}: " . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * MOSTRAR FORMULARIO DE PROCESAMIENTO - SEGUNDO PASO
      */
-    public function procesarForm(Request $request)
+    public function procesarForm(Request $request, $id = null)
     {
-        $rows = session('temp_dbf_data');
-        $nroCarga = session('temp_nro_carga');
-        $nombreArchivo = session('temp_dbf_nombre');
+        Log::info('=== PROCESAR FORM INICIADO ===', [
+            'user' => Auth::id(),
+            'id' => $id,
+            'has_session_data' => !empty(session('temp_dbf_data')),
+            'has_session_nro_carga' => !empty(session('temp_nro_carga'))
+        ]);
         
-        // Si no hay datos en sesión, buscar la remesa pendiente más reciente del usuario
-        if (!$rows || !$nroCarga) {
-            $remesaPendiente = RemesaPendiente::where('usuario_id', Auth::id())
-                                   ->orderBy('fecha_carga', 'desc')
-                                   ->first();
+        $remesaPendiente = null;
+        $rows = null;
+        $nroCarga = null;
+        $nombreArchivo = null;
+        
+        // Priorizar el ID específico pasado como parámetro
+        if ($id) {
+            $remesaPendiente = RemesaPendiente::where('id', $id)
+                                           ->where('usuario_id', Auth::id())
+                                           ->first();
             
             if (!$remesaPendiente) {
+                Log::warning('No se encontró remesa pendiente específica', ['id_buscado' => $id]);
                 return redirect()->route('remesa.lista')
-                    ->withErrors(['error' => 'No hay remesas pendientes para procesar.']);
+                    ->withErrors(['error' => 'No se encontró la remesa pendiente especificada.']);
             }
+        } else {
+            // Si no hay ID específico, usar datos de sesión o buscar la más reciente
+            $rows = session('temp_dbf_data');
+            $nroCarga = session('temp_nro_carga');
+            $nombreArchivo = session('temp_dbf_nombre');
+            
+            if (!$rows || !$nroCarga) {
+                $remesaPendiente = RemesaPendiente::where('usuario_id', Auth::id())
+                                       ->orderBy('fecha_carga', 'desc')
+                                       ->first();
+            }
+        }
+        
+        // Si tenemos una remesa pendiente específica, cargar sus datos
+        if ($remesaPendiente) {
+            Log::info('Remesa pendiente encontrada', [
+                'remesa_id' => $remesaPendiente->id,
+                'nro_carga' => $remesaPendiente->nro_carga,
+                'usuario_id' => $remesaPendiente->usuario_id
+            ]);
             
             // Cargar datos del archivo temporal si existe
             $tempPath = session('temp_dbf_file');
@@ -280,19 +470,86 @@ class RemesaController extends Controller
                 $rows = $parsed['rows'] ?? [];
             } else {
                 // Si no hay archivo temporal, usar los datos reales de datos_dbf
-                $datos_dbf = is_array($remesaPendiente->datos_dbf) ? $remesaPendiente->datos_dbf : json_decode($remesaPendiente->datos_dbf, true);
+                // Forzar conversión desde JSON string si es necesario
+                $rawData = $remesaPendiente->getAttributes()['datos_dbf'] ?? null;
+                $datos_dbf = null;
+                
+                if (is_string($rawData)) {
+                    // Intentar decodificar el JSON
+                    $firstDecode = json_decode($rawData, true);
+                    
+                    Log::info('Debug decodificación', [
+                        'raw_data_length' => strlen($rawData),
+                        'raw_data_preview' => substr($rawData, 0, 100),
+                        'first_decode_type' => gettype($firstDecode),
+                        'first_decode_error' => json_last_error_msg(),
+                        'is_string_first' => is_string($firstDecode)
+                    ]);
+                    
+                    // Verificar si hubo error en el primer decode
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        Log::error('Error decodificando JSON', ['error' => json_last_error_msg()]);
+                        $datos_dbf = null;
+                    } else {
+                        // Si el primer decodificado devuelve un string, intentar segundo decodificado
+                        if (is_string($firstDecode)) {
+                            $secondDecode = json_decode($firstDecode, true);
+                            Log::info('Segundo decode', [
+                                'second_decode_type' => gettype($secondDecode),
+                                'second_decode_error' => json_last_error_msg()
+                            ]);
+                            if (json_last_error() === JSON_ERROR_NONE) {
+                                $datos_dbf = $secondDecode;
+                            } else {
+                                $datos_dbf = $firstDecode; // Usar el string como está
+                            }
+                        } else {
+                            $datos_dbf = $firstDecode;
+                        }
+                    }
+                } elseif (is_array($rawData)) {
+                    $datos_dbf = $rawData;
+                } else {
+                    // Usar el cast del modelo como fallback
+                    $datos_dbf = $remesaPendiente->datos_dbf;
+                }
+                
+                Log::info('Datos DBF cargados', [
+                    'raw_data_type' => gettype($rawData),
+                    'datos_dbf_type' => gettype($datos_dbf),
+                    'is_array' => is_array($datos_dbf),
+                    'count' => is_array($datos_dbf) ? count($datos_dbf) : 'not array',
+                    'sample_data' => is_array($datos_dbf) ? 'array_data' : substr(strval($datos_dbf), 0, 100)
+                ]);
                 
                 if (is_array($datos_dbf) && !empty($datos_dbf)) {
-                    // Los datos_dbf ahora contienen todos los registros como array de arrays
-                    $rows = $datos_dbf;
+                    // Verificar si contiene registros reales o solo metadatos
+                    if (isset($datos_dbf[0]) && is_array($datos_dbf[0]) && isset($datos_dbf[0]['NIS'])) {
+                        // Son registros reales del DBF
+                        $rows = $datos_dbf;
+                    } elseif (isset($datos_dbf['first_row_sample']) && is_array($datos_dbf['first_row_sample'])) {
+                        // Son metadatos, usar el sample como único registro
+                        $rows = [$datos_dbf['first_row_sample']];
+                        Log::warning('Usando datos de muestra desde metadatos', [
+                            'remesa_id' => $remesaPendiente->id,
+                            'nro_carga' => $remesaPendiente->nro_carga
+                        ]);
+                    } else {
+                        // Estructura desconocida
+                        Log::error('Estructura de datos_dbf desconocida', [
+                            'remesa_id' => $remesaPendiente->id,
+                            'structure' => array_keys($datos_dbf)
+                        ]);
+                        $rows = [];
+                    }
                 } else {
                     // Fallback: crear datos de ejemplo solo si no hay datos reales
                     $rows = [
                         [
-                            'NIS' => $remesaPendiente->nis ?? 'N/A',
-                            'NROMEDIDOR' => $remesaPendiente->nromedidor ?? 'N/A',
-                            'NOMCLI' => $remesaPendiente->nomcli ?? 'N/A',
-                            'DIR_PROC' => $remesaPendiente->dir_pro ?? 'N/A',
+                            'NIS' => 'N/A',
+                            'NROMEDIDOR' => 'N/A',
+                            'NOMCLI' => 'N/A',
+                            'DIR_PROC' => 'N/A',
                         ]
                     ];
                 }
@@ -310,9 +567,26 @@ class RemesaController extends Controller
             ]);
         }
 
+        // Validar que tenemos los datos necesarios
+        if (!$rows || !$nroCarga || empty($rows)) {
+            Log::error('No hay datos para procesar', [
+                'has_rows' => !empty($rows),
+                'has_nro_carga' => !empty($nroCarga),
+                'id' => $id
+            ]);
+            return redirect()->route('remesa.lista')
+                ->withErrors(['error' => 'No se encontraron datos para procesar. Intenta cargar la remesa nuevamente.']);
+        }
+
         // Obtener centros de servicio disponibles
         $centrosServicio = array_keys($this->getCentrosServicio());
 
+        Log::info('Mostrando vista de procesamiento', [
+            'nro_carga' => $nroCarga,
+            'total_registros' => count($rows),
+            'centros_servicio_count' => count($centrosServicio)
+        ]);
+        
         return view('remesa_procesar', [
             'nro_carga' => $nroCarga,
             'nombre_archivo' => $nombreArchivo,
@@ -377,7 +651,6 @@ class RemesaController extends Controller
             $existing = Remesa::where('nro_carga', $nroCarga)
                              ->where('centro_servicio', $centroServicio)
                              ->where('usuario_id', Auth::id())
-                             ->where('id', '!=', $remesaId)
                              ->first();
             
             if ($existing) {
@@ -432,6 +705,51 @@ class RemesaController extends Controller
     }
 
     /**
+     * ELIMINAR REMESA PENDIENTE
+     */
+    public function eliminarPendiente(Request $request, $id)
+    {
+        try {
+            $remesaPendiente = RemesaPendiente::where('id', $id)
+                                           ->where('usuario_id', Auth::id())
+                                           ->first();
+            
+            if (!$remesaPendiente) {
+                return redirect()->route('remesa.lista')
+                    ->withErrors(['error' => 'No se encontró la remesa pendiente para eliminar.']);
+            }
+            
+            // Eliminar archivo temporal si existe
+            $tempPath = session('temp_dbf_file');
+            if ($tempPath && Storage::exists($tempPath)) {
+                Storage::delete($tempPath);
+            }
+            
+            // Eliminar la remesa pendiente
+            $remesaPendiente->delete();
+            
+            Log::info('Remesa pendiente eliminada', [
+                'remesa_id' => $id,
+                'nro_carga' => $remesaPendiente->nro_carga,
+                'usuario' => Auth::id()
+            ]);
+            
+            return redirect()->route('remesa.lista')
+                ->with('success', "Remesa pendiente {$remesaPendiente->nro_carga} eliminada correctamente.");
+                
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar remesa pendiente', [
+                'error' => $e->getMessage(),
+                'remesa_id' => $id,
+                'usuario' => Auth::id()
+            ]);
+            
+            return redirect()->route('remesa.lista')
+                ->withErrors(['error' => 'Error al eliminar la remesa pendiente: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
      * CARGAR AL SISTEMA - USANDO REMESA SERVICE CON OC (FLUJO ORIGINAL)
      */
     public function cargarAlSistema(Request $request)
@@ -481,13 +799,8 @@ class RemesaController extends Controller
                 Auth::id(), 
                 $nombreArchivo, 
                 $nroCarga, 
-                $centroServicio,
-                $remesaId  // Excluir la remesa pendiente actual
+                $centroServicio
             );
-            
-            // Eliminar el registro pendiente de la base de datos
-            $remesaPendiente->delete();
-            Log::info('Remesa pendiente eliminada de la base de datos', ['remesa_id' => $remesaId]);
             
             // Limpiar archivo temporal y sesión
             if ($tempPath && Storage::exists($tempPath)) {
@@ -543,28 +856,27 @@ class RemesaController extends Controller
     {
         $estado = $request->get('estado', 'todos');
         $usuario = Auth::user();
+        $perPage = 20;
         
-        // Administradores ven todas las remesas, usuarios normales solo las suyas
-        if ($usuario->isAdmin()) {
-            $query = Remesa::query();
-        } else {
-        $query = Remesa::where('usuario_id', Auth::id());
-        }
-
-        // Manejar filtro de estado
-        $remesasPendientes = collect();
-        
-        if ($estado === 'pendientes' || $estado === 'todos') {
-            // Obtener remesas pendientes de la nueva tabla
-            $pendientesQuery = RemesaPendiente::query();
+        // Si solo se solicitan pendientes, usar solo la tabla de pendientes
+        if ($estado === 'pendientes') {
+            $query = RemesaPendiente::query();
             if (!$usuario->isAdmin()) {
-                $pendientesQuery->where('usuario_id', Auth::id());
+                $query->where('usuario_id', Auth::id());
             }
             
-            $remesasPendientes = $pendientesQuery
+            // Aplicar filtros
+            if ($request->filled('nro_carga')) {
+                $query->where('nro_carga', 'like', '%' . $request->nro_carga . '%');
+            }
+            if ($request->filled('nombre_archivo')) {
+                $query->where('nombre_archivo', 'like', '%' . $request->nombre_archivo . '%');
+            }
+            
+            $remesas = $query->select(['id', 'nro_carga', 'nombre_archivo', 'fecha_carga', 'usuario_id', 'datos_dbf'])
                 ->orderBy('fecha_carga', 'desc')
-                ->get()
-                ->map(function ($remesa) {
+                ->paginate($perPage)
+                ->through(function ($remesa) {
                     // Contar registros reales en datos_dbf
                     $datos_dbf = is_array($remesa->datos_dbf) ? $remesa->datos_dbf : json_decode($remesa->datos_dbf, true);
                     $totalRegistros = is_array($datos_dbf) ? count($datos_dbf) : 1;
@@ -573,7 +885,7 @@ class RemesaController extends Controller
                         'nro_carga' => $remesa->nro_carga,
                         'nombre_archivo' => $remesa->nombre_archivo,
                         'cargado_al_sistema' => false,
-                        'total_registros' => $totalRegistros, // Contar registros reales
+                        'total_registros' => $totalRegistros,
                         'fecha_carga' => $remesa->fecha_carga,
                         'primer_id' => $remesa->id,
                         'editado' => false,
@@ -583,31 +895,24 @@ class RemesaController extends Controller
                     ];
                 });
         }
-
-        if ($estado === 'cargadas' || $estado === 'todos') {
-            // Aplicar filtro solo para remesas cargadas
-            if ($estado === 'cargadas') {
-                $query->where('cargado_al_sistema', true);
+        // Si solo se solicitan cargadas, usar solo la tabla de remesas
+        elseif ($estado === 'cargadas') {
+            $query = Remesa::query();
+            if (!$usuario->isAdmin()) {
+                $query->where('usuario_id', Auth::id());
             }
-        } else {
-            // Si es solo pendientes, no necesitamos consultar la tabla de remesas
-            $query = null;
-        }
-
-        // Obtener remesas cargadas si es necesario
-        $remesasCargadas = collect();
-        if ($query) {
-        // Aplicar filtros adicionales
-        if ($request->filled('nro_carga')) {
-            $query->where('nro_carga', 'like', '%' . $request->nro_carga . '%');
-        }
-
-        if ($request->filled('nombre_archivo')) {
-            $query->where('nombre_archivo', 'like', '%' . $request->nombre_archivo . '%');
-        }
-
-        // Agrupar por número de carga y obtener estadísticas
-            $remesasCargadas = $query->selectRaw('
+            
+            $query->where('cargado_al_sistema', true);
+            
+            // Aplicar filtros
+            if ($request->filled('nro_carga')) {
+                $query->where('nro_carga', 'like', '%' . $request->nro_carga . '%');
+            }
+            if ($request->filled('nombre_archivo')) {
+                $query->where('nombre_archivo', 'like', '%' . $request->nombre_archivo . '%');
+            }
+            
+            $remesas = $query->selectRaw('
                 nro_carga, 
                 MIN(nombre_archivo) as nombre_archivo, 
                 MIN(fecha_carga) as fecha_carga,
@@ -615,55 +920,103 @@ class RemesaController extends Controller
                 MAX(editado) as editado,
                 MAX(fecha_edicion) as fecha_edicion,
                 COUNT(*) as total_registros,
-                    MIN(id) as primer_id,
-                    MIN(usuario_id) as usuario_id
+                MIN(id) as primer_id,
+                MIN(usuario_id) as usuario_id
             ')
             ->groupBy('nro_carga')
             ->orderBy('fecha_carga', 'desc')
+            ->paginate($perPage)
+            ->through(function ($remesa) {
+                $usuario = \App\Models\Usuario::find($remesa->usuario_id);
+                $remesa->usuario_nombre = $usuario ? $usuario->correo : 'N/A';
+                return $remesa;
+            });
+        }
+        // Si se solicitan todos, combinar ambas consultas usando UNION
+        else {
+            // Crear consultas base
+            $pendientesQuery = RemesaPendiente::query();
+            $cargadasQuery = Remesa::query();
+            
+            if (!$usuario->isAdmin()) {
+                $pendientesQuery->where('usuario_id', Auth::id());
+                $cargadasQuery->where('usuario_id', Auth::id());
+            }
+            
+            // Aplicar filtros a ambas consultas
+            if ($request->filled('nro_carga')) {
+                $pendientesQuery->where('nro_carga', 'like', '%' . $request->nro_carga . '%');
+                $cargadasQuery->where('nro_carga', 'like', '%' . $request->nro_carga . '%');
+            }
+            if ($request->filled('nombre_archivo')) {
+                $pendientesQuery->where('nombre_archivo', 'like', '%' . $request->nombre_archivo . '%');
+                $cargadasQuery->where('nombre_archivo', 'like', '%' . $request->nombre_archivo . '%');
+            }
+            
+            // Preparar datos de pendientes
+            $pendientes = $pendientesQuery
+                ->select(['id', 'nro_carga', 'nombre_archivo', 'fecha_carga', 'usuario_id', 'datos_dbf'])
+                ->get()
+                ->map(function ($remesa) {
+                    $datos_dbf = is_array($remesa->datos_dbf) ? $remesa->datos_dbf : json_decode($remesa->datos_dbf, true);
+                    $totalRegistros = is_array($datos_dbf) ? count($datos_dbf) : 1;
+                    
+                    return (object) [
+                        'nro_carga' => $remesa->nro_carga,
+                        'nombre_archivo' => $remesa->nombre_archivo,
+                        'cargado_al_sistema' => false,
+                        'total_registros' => $totalRegistros,
+                        'fecha_carga' => $remesa->fecha_carga,
+                        'primer_id' => $remesa->id,
+                        'editado' => false,
+                        'fecha_edicion' => null,
+                        'usuario_id' => $remesa->usuario_id,
+                        'usuario_nombre' => $remesa->usuario->correo ?? 'N/A',
+                    ];
+                });
+            
+            // Preparar datos de cargadas
+            $cargadas = $cargadasQuery
+                ->selectRaw('
+                    nro_carga, 
+                    MIN(nombre_archivo) as nombre_archivo, 
+                    MIN(fecha_carga) as fecha_carga,
+                    MAX(cargado_al_sistema) as cargado_al_sistema,
+                    MAX(editado) as editado,
+                    MAX(fecha_edicion) as fecha_edicion,
+                    COUNT(*) as total_registros,
+                    MIN(id) as primer_id,
+                    MIN(usuario_id) as usuario_id
+                ')
+                ->groupBy('nro_carga')
                 ->get()
                 ->map(function ($remesa) {
                     $usuario = \App\Models\Usuario::find($remesa->usuario_id);
                     $remesa->usuario_nombre = $usuario ? $usuario->correo : 'N/A';
                     return $remesa;
                 });
+            
+            // Combinar y ordenar
+            $todasLasRemesas = $pendientes->concat($cargadas)
+                ->sortByDesc('fecha_carga')
+                ->values();
+            
+            // Crear paginación manual para la colección combinada
+            $currentPage = $request->get('page', 1);
+            $offset = ($currentPage - 1) * $perPage;
+            $paginatedItems = $todasLasRemesas->slice($offset, $perPage);
+            
+            $remesas = new \Illuminate\Pagination\LengthAwarePaginator(
+                $paginatedItems,
+                $todasLasRemesas->count(),
+                $perPage,
+                $currentPage,
+                [
+                    'path' => $request->url(),
+                    'pageName' => 'page',
+                ]
+            );
         }
-
-        // Combinar ambas colecciones
-        $todasLasRemesas = $remesasPendientes->concat($remesasCargadas)
-            ->sortByDesc('fecha_carga')
-            ->values();
-
-        // Aplicar filtros a la colección combinada
-        if ($request->filled('nro_carga')) {
-            $todasLasRemesas = $todasLasRemesas->filter(function ($remesa) use ($request) {
-                return str_contains($remesa->nro_carga, $request->nro_carga);
-            });
-        }
-
-        if ($request->filled('nombre_archivo')) {
-            $todasLasRemesas = $todasLasRemesas->filter(function ($remesa) use ($request) {
-                return str_contains($remesa->nombre_archivo, $request->nombre_archivo);
-            });
-        }
-
-        // Crear paginación manual
-        $perPage = 20;
-        $currentPage = $request->get('page', 1);
-        $offset = ($currentPage - 1) * $perPage;
-        
-        $paginatedItems = $todasLasRemesas->slice($offset, $perPage);
-        
-        // Crear objeto de paginación personalizado
-        $remesas = new \Illuminate\Pagination\LengthAwarePaginator(
-            $paginatedItems,
-            $todasLasRemesas->count(),
-            $perPage,
-            $currentPage,
-            [
-                'path' => $request->url(),
-                'pageName' => 'page',
-            ]
-        );
 
         return view('remesa_lista', [
             'remesas' => $remesas,
