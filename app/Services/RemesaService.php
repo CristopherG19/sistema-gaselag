@@ -146,13 +146,15 @@ class RemesaService
      */
     public function bulkInsert(array $rows, int $userId, string $fileName, ?string $nroCarga = null, ?string $centroServicio = null, ?int $excludeRemesaId = null): array
     {
-        Log::info("INICIO: Proceso de carga masiva", [
-            'usuario_id' => $userId,
-            'archivo' => $fileName,
-            'total_registros' => count($rows),
-            'centro_servicio' => $centroServicio,
-            'timestamp' => now()
-        ]);
+        // Log solo en desarrollo/debug
+        if (config('app.debug', false)) {
+            Log::info("INICIO: Proceso de carga masiva", [
+                'usuario_id' => $userId,
+                'archivo' => $fileName,
+                'total_registros' => count($rows),
+                'centro_servicio' => $centroServicio
+            ]);
+        }
 
         $this->setProcessingLimits();
 
@@ -164,12 +166,14 @@ class RemesaService
         // Generar bloque de OCs secuenciales para todos los registros
         $startingOC = $this->getNextOCRange(count($rows));
 
-        Log::info("Números generados", [
-            'nro_carga' => $nroCarga,
-            'starting_oc' => $startingOC,
-            'total_ocs_needed' => count($rows),
-            'archivo' => $fileName
-        ]);
+        // Log solo información crítica
+        if (config('app.debug', false)) {
+            Log::info("Números generados", [
+                'nro_carga' => $nroCarga,
+                'starting_oc' => $startingOC,
+                'total_ocs_needed' => count($rows)
+            ]);
+        }
 
         // Verificar duplicados antes de procesar - RECHAZAR INMEDIATAMENTE
         $existingRemesa = $this->checkDuplicateNroCarga($nroCarga, $userId, $excludeRemesaId);

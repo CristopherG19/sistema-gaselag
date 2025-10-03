@@ -6,6 +6,7 @@ use App\Services\DbfParser;
 use App\Services\RemesaService;
 use App\Models\Remesa;
 use App\Models\RemesaPendiente;
+use App\Traits\RemesaHelpers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -15,10 +16,12 @@ use Illuminate\Support\Facades\Storage;
 /**
  * CONTROLADOR PRINCIPAL PARA REMESAS
  * Procesamiento directo: Upload → Preview → Inserción inmediata
- * Sin jobs, sin JSON temporal, sin servicios complejos
+ * Refactorizado con trait RemesaHelpers para funciones comunes
  */
 class RemesaController extends Controller
 {
+    use RemesaHelpers;
+    
     private DbfParser $dbfParser;
     private RemesaService $remesaService;
 
@@ -834,20 +837,8 @@ class RemesaController extends Controller
     }
 
     /**
-     * Helpers
+     * Helpers - extractNroCarga ahora está en RemesaHelpers trait
      */
-    private function extractNroCarga(array $row): string
-    {
-        $fields = ['NROCARGA', 'ENUSORGA', 'NRO_CARGA'];
-        
-        foreach ($fields as $field) {
-            if (isset($row[$field]) && !empty(trim($row[$field]))) {
-                return trim($row[$field]);
-            }
-        }
-        
-        return 'AUTO_' . time() . '_' . rand(1000, 9999);
-    }
 
     /**
      * Mostrar lista de remesas cargadas
@@ -1158,21 +1149,8 @@ class RemesaController extends Controller
     }
 
     /**
-     * Obtener lista de centros de servicio SEDAPAL disponibles
+     * getCentrosServicio ahora está en RemesaHelpers trait
      */
-    private function getCentrosServicio(): array
-    {
-        return [
-            'SEDAPAL BREÑA' => 'SEDAPAL BREÑA',
-            'SEDAPAL VILLA EL SALVADOR' => 'SEDAPAL VILLA EL SALVADOR', 
-            'SEDAPAL ATE' => 'SEDAPAL ATE',
-            'SEDAPAL COMAS' => 'SEDAPAL COMAS',
-            'SEDAPAL SAN JUAN DE LURIGANCHO' => 'SEDAPAL SAN JUAN DE LURIGANCHO',
-            'SEDAPAL CLIENTES ESPECIALES' => 'SEDAPAL CLIENTES ESPECIALES',
-            'SEDAPAL CALLAO' => 'SEDAPAL CALLAO',
-            'SEDAPAL SURQUILLO' => 'SEDAPAL SURQUILLO',
-        ];
-    }
 
     /**
      * Ver registros de una remesa específica
