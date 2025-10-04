@@ -179,7 +179,7 @@ class RemesaController extends Controller
         Log::info('=== SUBIR MÚLTIPLES ARCHIVOS INICIADO ===', ['user' => Auth::id()]);
         
         $request->validate([
-            'archivos_dbf' => 'required|array|min:1|max:10', // Máximo 10 archivos
+            'archivos_dbf' => 'required|array|min:1|max:100', // Máximo 100 archivos - ampliado para lotes grandes
             'archivos_dbf.*' => 'required|file|mimes:dbf|max:51200', // 50MB max por archivo
         ]);
 
@@ -189,18 +189,27 @@ class RemesaController extends Controller
         try {
             $archivos = $request->file('archivos_dbf');
             
+            $totalArchivos = count($archivos);
+            Log::info("Iniciando procesamiento masivo de {$totalArchivos} archivos");
+            
             foreach ($archivos as $index => $file) {
                 try {
+                    $progreso = $index + 1;
+                    Log::info("Procesando archivo {$progreso}/{$totalArchivos}: {$file->getClientOriginalName()}");
+                    
                     $resultado = $this->procesarArchivoIndividual($file, $index);
                     if ($resultado['success']) {
                         $archivosProcesados[] = $resultado['data'];
+                        Log::info("✅ Archivo {$progreso}/{$totalArchivos} procesado exitosamente");
                     } else {
                         $errores[] = $resultado['error'];
+                        Log::warning("⚠️ Error en archivo {$progreso}/{$totalArchivos}: {$resultado['error']}");
                     }
                 } catch (\Exception $e) {
                     $errores[] = "Error en archivo {$file->getClientOriginalName()}: " . $e->getMessage();
                     Log::error('Error procesando archivo individual', [
                         'archivo' => $file->getClientOriginalName(),
+                        'progreso' => "{$progreso}/{$totalArchivos}",
                         'error' => $e->getMessage()
                     ]);
                 }
@@ -1213,12 +1222,40 @@ class RemesaController extends Controller
                                    ->pluck('centro_servicio')
                                    ->filter()
                                    ->sort();
+
+        // Calcular estadísticas TOTALES de la remesa (no solo de la página actual)
+        $estadisticasQuery = Remesa::where('nro_carga', $nroCarga);
+        if (!$usuario->isAdmin()) {
+            $estadisticasQuery->where('usuario_id', Auth::id());
+        }
+        
+        // Aplicar los mismos filtros que en la consulta principal para estadísticas correctas
+        if ($request->filled('nis')) {
+            $estadisticasQuery->where('nis', 'like', '%' . $request->nis . '%');
+        }
+        if ($request->filled('nromedidor')) {
+            $estadisticasQuery->where('nromedidor', 'like', '%' . $request->nromedidor . '%');
+        }
+        if ($request->filled('nomclie')) {
+            $estadisticasQuery->where('nomclie', 'like', '%' . $request->nomclie . '%');
+        }
+        if ($request->filled('centro_servicio')) {
+            $estadisticasQuery->where('centro_servicio', $request->centro_servicio);
+        }
+
+        $estadisticas = [
+            'total_registros' => $estadisticasQuery->count(),
+            'registros_originales' => $estadisticasQuery->where('editado', false)->count(),
+            'registros_editados' => $estadisticasQuery->where('editado', true)->count(),
+            'total_centros' => $centrosDisponibles->count()
+        ];
         
         return view('remesa_registros', [
             'registros' => $registros,
             'nroCarga' => $nroCarga,
             'infoRemesa' => $infoRemesa,
             'centrosDisponibles' => $centrosDisponibles,
+            'estadisticas' => $estadisticas,
             'filtros' => $request->only(['nis', 'nromedidor', 'nomclie', 'centro_servicio', 'per_page']),
         ]);
     }
@@ -1443,5 +1480,168 @@ class RemesaController extends Controller
     public function actualizarMetadatos(Request $request, string $nroCarga)
     {
         return $this->editarMetadatos($request, $nroCarga);
+    }
+
+    /**
+     * Procesar todos los archivos pendientes de una vez
+     */
+    public function procesarTodosPendientes(Request $request)
+    {
+        $usuario = Auth::user();
+        
+        // Obtener todos los archivos pendientes del usuario
+        $pendientesQuery = RemesaPendiente::orderBy('created_at', 'asc');
+        if (!$usuario->isAdmin()) {
+            $pendientesQuery->where('usuario_id', Auth::id());
+        }
+        
+        $archivosPendientes = $pendientesQuery->get();
+        
+        if ($archivosPendientes->isEmpty()) {
+            return redirect()->route('remesa.lista')
+                ->with('warning', 'No hay archivos pendientes para procesar.');
+        }
+
+        Log::info('=== PROCESAMIENTO MASIVO DE PENDIENTES INICIADO ===', [
+            'user' => Auth::id(),
+            'total_archivos' => $archivosPendientes->count()
+        ]);
+
+        $procesados = [];
+        $errores = [];
+        $totalRegistros = 0;
+
+        // Configurar límites para procesamiento masivo
+        ini_set('memory_limit', config('remesas.dbf.processing.memory_limit', '1024M'));
+        ini_set('max_execution_time', config('remesas.dbf.processing.time_limit', 900)); // 15 minutos
+
+        try {
+            foreach ($archivosPendientes as $index => $pendiente) {
+                $progreso = $index + 1;
+                $total = $archivosPendientes->count();
+                
+                Log::info("Procesando archivo pendiente {$progreso}/{$total}: {$pendiente->nombre_archivo}");
+                
+                try {
+                    // Procesar archivo pendiente a BD
+                    $resultado = $this->procesarPendienteABD($pendiente);
+                    
+                    if ($resultado['success']) {
+                        $procesados[] = [
+                            'archivo' => $pendiente->nombre_archivo,
+                            'nro_carga' => $pendiente->nro_carga,
+                            'registros' => $resultado['registros_insertados']
+                        ];
+                        $totalRegistros += $resultado['registros_insertados'];
+                        
+                        Log::info("✅ Archivo {$progreso}/{$total} procesado exitosamente", [
+                            'archivo' => $pendiente->nombre_archivo,
+                            'registros' => $resultado['registros_insertados']
+                        ]);
+                    } else {
+                        $errores[] = "Error en {$pendiente->nombre_archivo}: {$resultado['error']}";
+                        Log::warning("⚠️ Error en archivo {$progreso}/{$total}", [
+                            'archivo' => $pendiente->nombre_archivo,
+                            'error' => $resultado['error']
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    $errores[] = "Error crítico en {$pendiente->nombre_archivo}: " . $e->getMessage();
+                    Log::error('Error crítico procesando pendiente', [
+                        'archivo' => $pendiente->nombre_archivo,
+                        'progreso' => "{$progreso}/{$total}",
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                }
+            }
+
+            // Preparar mensaje de resultado
+            $mensaje = "Procesamiento masivo completado: ";
+            $mensaje .= count($procesados) . " archivo(s) procesados exitosamente";
+            $mensaje .= " ({$totalRegistros} registros insertados en BD)";
+            
+            if (!empty($errores)) {
+                $mensaje .= ". Errores en " . count($errores) . " archivo(s)";
+            }
+
+            Log::info('=== PROCESAMIENTO MASIVO COMPLETADO ===', [
+                'user' => Auth::id(),
+                'procesados' => count($procesados),
+                'errores' => count($errores),
+                'total_registros' => $totalRegistros
+            ]);
+
+            if (empty($procesados)) {
+                return redirect()->route('remesa.lista')
+                    ->withErrors(['error' => 'No se pudo procesar ningún archivo. Errores: ' . implode(', ', $errores)]);
+            }
+
+            $tipoMensaje = empty($errores) ? 'success' : 'warning';
+            return redirect()->route('remesa.lista')
+                ->with($tipoMensaje, $mensaje);
+
+        } catch (\Exception $e) {
+            Log::error('Error general en procesamiento masivo de pendientes', [
+                'error' => $e->getMessage(),
+                'user' => Auth::id(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->route('remesa.lista')
+                ->withErrors(['error' => 'Error general en el procesamiento masivo: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Procesar un archivo pendiente específico a la base de datos
+     */
+    private function procesarPendienteABD(RemesaPendiente $pendiente)
+    {
+        try {
+            Log::info('Iniciando procesamiento de pendiente a BD', [
+                'archivo' => $pendiente->nombre_archivo,
+                'nro_carga' => $pendiente->nro_carga
+            ]);
+
+            // Verificar si ya existe la remesa
+            $existeRemesa = Remesa::where('nro_carga', $pendiente->nro_carga)->exists();
+            if ($existeRemesa) {
+                return [
+                    'success' => false,
+                    'error' => 'La remesa ya existe en la base de datos'
+                ];
+            }
+
+            // Procesar con RemesaService
+            $service = new RemesaService();
+            $resultado = $service->procesarPendienteCompleto($pendiente);
+
+            if ($resultado['success']) {
+                // Eliminar el archivo pendiente después del procesamiento exitoso
+                $pendiente->delete();
+                
+                return [
+                    'success' => true,
+                    'registros_insertados' => $resultado['registros_insertados'] ?? 0
+                ];
+            } else {
+                return [
+                    'success' => false,
+                    'error' => $resultado['error'] ?? 'Error desconocido'
+                ];
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error procesando pendiente a BD', [
+                'archivo' => $pendiente->nombre_archivo,
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
     }
 }

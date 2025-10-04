@@ -57,6 +57,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/remesa/subir-pendiente', [RemesaController::class, 'subirComoPendiente'])->name('remesa.subir.pendiente');
         Route::get('/remesa/procesar/{id?}', [RemesaController::class, 'procesarForm'])->name('remesa.procesar.form');
         Route::post('/remesa/procesar', [RemesaController::class, 'procesarPendiente'])->name('remesa.procesar');
+        Route::post('/remesa/procesar-todos-pendientes', [RemesaController::class, 'procesarTodosPendientes'])->name('remesa.procesar.todos.pendientes');
         Route::delete('/remesa/eliminar-pendiente/{id}', [RemesaController::class, 'eliminarPendiente'])->name('remesa.eliminar.pendiente');
         
         Route::get('/remesa/cancelar', [RemesaController::class, 'cancelar'])->name('remesa.cancelar');

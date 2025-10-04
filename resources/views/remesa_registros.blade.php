@@ -301,25 +301,25 @@
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="stats-card">
-                    <div class="stats-number">{{ number_format($registros->total()) }}</div>
+                    <div class="stats-number">{{ number_format($estadisticas['total_registros']) }}</div>
                     <div class="stats-label">Total Registros</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stats-card">
-                    <div class="stats-number text-success">{{ $registros->where('editado', false)->count() }}</div>
+                    <div class="stats-number text-success">{{ number_format($estadisticas['registros_originales']) }}</div>
                     <div class="stats-label">Originales</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stats-card">
-                    <div class="stats-number text-warning">{{ $registros->where('editado', true)->count() }}</div>
+                    <div class="stats-number text-warning">{{ number_format($estadisticas['registros_editados']) }}</div>
                     <div class="stats-label">Editados</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stats-card">
-                    <div class="stats-number text-info">{{ $centrosDisponibles->count() }}</div>
+                    <div class="stats-number text-info">{{ $estadisticas['total_centros'] }}</div>
                     <div class="stats-label">Centros</div>
                 </div>
             </div>

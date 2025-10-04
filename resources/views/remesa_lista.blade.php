@@ -169,6 +169,13 @@
                                 </form>
                             </div>
                             <div class="col-md-6 text-end">
+                                @if(Auth::user()->isAdmin() && $estado == 'pendientes' && $remesas->total() > 0)
+                                    <div class="mb-2">
+                                        <button type="button" class="btn btn-success me-2" onclick="confirmarProcesarTodos()">
+                                            <i class="bi bi-play-circle-fill"></i> Procesar Todos los Pendientes
+                                        </button>
+                                    </div>
+                                @endif
                                 <small class="text-muted">
                                     Total: {{ $remesas->total() }} remesas
                                 </small>
@@ -325,6 +332,64 @@
         </div>
     </div>
 
+    <!-- Modal de confirmación para procesar todos los pendientes -->
+    <div class="modal fade" id="confirmarProcesarTodosModal" tabindex="-1" aria-labelledby="confirmarProcesarTodosModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="confirmarProcesarTodosModalLabel">
+                        <i class="bi bi-play-circle-fill"></i> Procesar Todos los Archivos Pendientes
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Procesamiento Masivo</strong>
+                    </div>
+                    <p>Esta acción procesará <strong>TODOS</strong> los archivos pendientes y los cargará a la base de datos.</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="bi bi-check-circle text-success"></i> Lo que sucederá:</h6>
+                            <ul class="text-muted small">
+                                <li>Se procesarán todos los archivos DBF pendientes</li>
+                                <li>Los registros se insertarán en la base de datos</li>
+                                <li>Los archivos se marcarán como procesados</li>
+                                <li>Recibirás un resumen completo del proceso</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="bi bi-clock text-warning"></i> Consideraciones:</h6>
+                            <ul class="text-muted small">
+                                <li>El proceso puede tomar varios minutos</li>
+                                <li>No cierres esta pestaña durante el procesamiento</li>
+                                <li>Si hay errores, solo los archivos exitosos se procesarán</li>
+                                <li>Podrás resubir los archivos que fallen</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning mt-3">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Atención:</strong> Esta acción no se puede deshacer una vez iniciada.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </button>
+                    <form id="formProcesarTodos" method="POST" action="{{ route('remesa.procesar.todos.pendientes') }}" style="display: inline;">
+                        @csrf
+                        <button type="submit" class="btn btn-success" id="btnProcesarTodos">
+                            <i class="bi bi-play-circle-fill"></i> Procesar Todos
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
     function confirmarEliminacion(remesaId, nroCarga) {
         document.getElementById('nroCargaEliminar').textContent = nroCarga;
@@ -333,5 +398,40 @@
         const modal = new bootstrap.Modal(document.getElementById('confirmarEliminacionModal'));
         modal.show();
     }
+
+    function confirmarProcesarTodos() {
+        const modal = new bootstrap.Modal(document.getElementById('confirmarProcesarTodosModal'));
+        modal.show();
+    }
+
+    // Manejar el envío del formulario de procesamiento masivo
+    document.getElementById('formProcesarTodos').addEventListener('submit', function(e) {
+        const btn = document.getElementById('btnProcesarTodos');
+        const originalText = btn.innerHTML;
+        
+        // Cambiar el botón para mostrar que está procesando
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
+        btn.disabled = true;
+        
+        // Mostrar mensaje de progreso
+        const modalBody = document.querySelector('#confirmarProcesarTodosModal .modal-body');
+        const progressAlert = document.createElement('div');
+        progressAlert.className = 'alert alert-primary mt-3';
+        progressAlert.innerHTML = `
+            <div class="d-flex align-items-center">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="visually-hidden">Procesando...</span>
+                </div>
+                <div>
+                    <strong>Procesamiento en curso...</strong><br>
+                    <small class="text-muted">Por favor, no cierres esta ventana. El proceso puede tomar varios minutos.</small>
+                </div>
+            </div>
+        `;
+        modalBody.appendChild(progressAlert);
+        
+        // Desactivar el botón de cancelar
+        document.querySelector('#confirmarProcesarTodosModal .btn-secondary').disabled = true;
+    });
     </script>
 @endsection

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Remesa;
+use App\Models\RemesaPendiente;
 use App\Models\Usuario;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -749,5 +750,100 @@ class RemesaService
         }
         
         return $message;
+    }
+
+    /**
+     * Procesar un archivo pendiente completo a la base de datos
+     */
+    public function procesarPendienteCompleto(RemesaPendiente $pendiente): array
+    {
+        try {
+            Log::info('Iniciando procesamiento completo de pendiente', [
+                'archivo' => $pendiente->nombre_archivo,
+                'nro_carga' => $pendiente->nro_carga
+            ]);
+
+            // Obtener la ruta del archivo temporal
+            $rutaArchivo = $pendiente->ruta_archivo;
+            if (!$rutaArchivo || !Storage::exists($rutaArchivo)) {
+                return [
+                    'success' => false,
+                    'error' => 'Archivo temporal no encontrado'
+                ];
+            }
+
+            $fullPath = Storage::path($rutaArchivo);
+
+            // Verificar si el archivo existe físicamente
+            if (!file_exists($fullPath)) {
+                return [
+                    'success' => false,
+                    'error' => 'Archivo físico no encontrado'
+                ];
+            }
+
+            // Procesar el archivo temporal
+            $resultadoProcesamiento = $this->processTemporaryFile($fullPath);
+            
+            if (!$resultadoProcesamiento['success']) {
+                return [
+                    'success' => false,
+                    'error' => $resultadoProcesamiento['message'] ?? 'Error al procesar archivo'
+                ];
+            }
+
+            $rows = $resultadoProcesamiento['data']['rows'] ?? [];
+            if (empty($rows)) {
+                return [
+                    'success' => false,
+                    'error' => 'No se encontraron registros válidos en el archivo'
+                ];
+            }
+
+            // Insertar masivamente en la base de datos
+            $resultadoInsercion = $this->bulkInsert(
+                $rows,
+                $pendiente->usuario_id,
+                $pendiente->nombre_archivo,
+                $pendiente->nro_carga,
+                $pendiente->centro_servicio
+            );
+
+            if (!$resultadoInsercion['success']) {
+                return [
+                    'success' => false,
+                    'error' => $resultadoInsercion['message'] ?? 'Error al insertar en base de datos'
+                ];
+            }
+
+            // Limpiar archivo temporal
+            if (Storage::exists($rutaArchivo)) {
+                Storage::delete($rutaArchivo);
+            }
+
+            Log::info('Procesamiento completo de pendiente exitoso', [
+                'archivo' => $pendiente->nombre_archivo,
+                'nro_carga' => $pendiente->nro_carga,
+                'registros_insertados' => $resultadoInsercion['registros_insertados'] ?? 0
+            ]);
+
+            return [
+                'success' => true,
+                'registros_insertados' => $resultadoInsercion['registros_insertados'] ?? 0,
+                'message' => 'Archivo procesado exitosamente'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error en procesamiento completo de pendiente', [
+                'archivo' => $pendiente->nombre_archivo ?? 'desconocido',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'error' => 'Error crítico: ' . $e->getMessage()
+            ];
+        }
     }
 }
