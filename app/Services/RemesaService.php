@@ -763,42 +763,38 @@ class RemesaService
                 'nro_carga' => $pendiente->nro_carga
             ]);
 
-            // Obtener la ruta del archivo temporal
-            $rutaArchivo = $pendiente->ruta_archivo;
-            if (!$rutaArchivo || !Storage::exists($rutaArchivo)) {
+            // Obtener los datos del DBF desde el JSON almacenado
+            $datosDbf = $pendiente->getDatosDbfArray();
+            if (empty($datosDbf)) {
                 return [
                     'success' => false,
-                    'error' => 'Archivo temporal no encontrado'
+                    'error' => 'No se encontraron datos del DBF en el registro pendiente'
                 ];
             }
 
-            $fullPath = Storage::path($rutaArchivo);
-
-            // Verificar si el archivo existe físicamente
-            if (!file_exists($fullPath)) {
-                return [
-                    'success' => false,
-                    'error' => 'Archivo físico no encontrado'
-                ];
+            // Manejar diferentes formatos de datos almacenados
+            $rows = [];
+            if (isset($datosDbf['rows']) && is_array($datosDbf['rows'])) {
+                // Formato nuevo: {'rows': [...], 'metadata': {...}}
+                $rows = $datosDbf['rows'];
+            } elseif (is_array($datosDbf) && isset($datosDbf[0])) {
+                // Formato anterior: directamente el array de registros
+                $rows = $datosDbf;
             }
 
-            // Procesar el archivo temporal
-            $resultadoProcesamiento = $this->processTemporaryFile($fullPath);
-            
-            if (!$resultadoProcesamiento['success']) {
-                return [
-                    'success' => false,
-                    'error' => $resultadoProcesamiento['message'] ?? 'Error al procesar archivo'
-                ];
-            }
-
-            $rows = $resultadoProcesamiento['data']['rows'] ?? [];
             if (empty($rows)) {
                 return [
                     'success' => false,
-                    'error' => 'No se encontraron registros válidos en el archivo'
+                    'error' => 'No se encontraron registros válidos en los datos almacenados'
                 ];
             }
+            Log::info('Datos recuperados desde JSON', [
+                'archivo' => $pendiente->nombre_archivo,
+                'registros_encontrados' => count($rows)
+            ]);
+
+            // Extraer centro de servicio de los datos almacenados si no está definido
+            $centroServicio = $datosDbf['centro_servicio'] ?? null;
 
             // Insertar masivamente en la base de datos
             $resultadoInsercion = $this->bulkInsert(
@@ -806,7 +802,7 @@ class RemesaService
                 $pendiente->usuario_id,
                 $pendiente->nombre_archivo,
                 $pendiente->nro_carga,
-                $pendiente->centro_servicio
+                $centroServicio
             );
 
             if (!$resultadoInsercion['success']) {
@@ -814,11 +810,6 @@ class RemesaService
                     'success' => false,
                     'error' => $resultadoInsercion['message'] ?? 'Error al insertar en base de datos'
                 ];
-            }
-
-            // Limpiar archivo temporal
-            if (Storage::exists($rutaArchivo)) {
-                Storage::delete($rutaArchivo);
             }
 
             Log::info('Procesamiento completo de pendiente exitoso', [

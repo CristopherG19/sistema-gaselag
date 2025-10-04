@@ -393,8 +393,18 @@ class RemesaController extends Controller
                 'nombre_archivo' => $file->getClientOriginalName(),
                 'fecha_carga' => now(),
                 'usuario_id' => Auth::id(),
-                'datos_dbf' => $rows, // Guardar todos los registros, no solo metadatos
+                'datos_dbf' => [
+                    'rows' => $rows,
+                    'metadata' => [
+                        'total_records' => count($rows),
+                        'processed_at' => now()->toISOString(),
+                        'file_size' => $file->getSize(),
+                    ]
+                ]
             ]);
+
+            // Limpiar archivo temporal ya que los datos están guardados en JSON
+            Storage::delete($tempPath);
 
             Log::info('Archivo individual procesado exitosamente', [
                 'remesa_id' => $remesaPendiente->id,
