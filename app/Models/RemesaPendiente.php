@@ -26,6 +26,40 @@ class RemesaPendiente extends Model
         'datos_dbf',
     ];
 
+    /**
+     * Reglas de validación
+     */
+    public static function rules()
+    {
+        return [
+            'usuario_id' => 'required|exists:usuarios,id',
+            'nombre_archivo' => 'required|string|max:255',
+            'nro_carga' => 'required|string|max:20',
+            'fecha_carga' => 'required|date',
+            'datos_dbf' => 'required|array',
+        ];
+    }
+
+    /**
+     * Verificar si existe duplicado por nombre de archivo para un usuario
+     */
+    public static function existeArchivoPorUsuario(string $nombreArchivo, int $usuarioId): bool
+    {
+        return static::where('nombre_archivo', $nombreArchivo)
+                    ->where('usuario_id', $usuarioId)
+                    ->exists();
+    }
+
+    /**
+     * Verificar si existe duplicado por número de carga para un usuario
+     */
+    public static function existeNroCargaPorUsuario(string $nroCarga, int $usuarioId): bool
+    {
+        return static::where('nro_carga', $nroCarga)
+                    ->where('usuario_id', $usuarioId)
+                    ->exists();
+    }
+
     protected $casts = [
         'fecha_carga' => 'datetime',
         'datos_dbf' => 'array',

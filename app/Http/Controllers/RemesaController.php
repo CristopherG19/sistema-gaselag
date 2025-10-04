@@ -388,6 +388,36 @@ class RemesaController extends Controller
             // Extraer número de carga
             $nroCarga = $this->extractNroCarga($rows[0] ?? []);
             
+            $userId = Auth::id();
+            $nombreArchivo = $file->getClientOriginalName();
+            
+            // Verificar duplicados por nombre de archivo
+            if (RemesaPendiente::existeArchivoPorUsuario($nombreArchivo, $userId)) {
+                Storage::delete($tempPath);
+                return [
+                    'success' => false,
+                    'error' => "El archivo {$nombreArchivo} ya existe en pendientes"
+                ];
+            }
+            
+            // Verificar duplicados por número de carga en pendientes
+            if (RemesaPendiente::existeNroCargaPorUsuario($nroCarga, $userId)) {
+                Storage::delete($tempPath);
+                return [
+                    'success' => false,
+                    'error' => "Ya existe una remesa pendiente con el número de carga {$nroCarga}"
+                ];
+            }
+            
+            // Verificar si ya existe en la tabla principal (remesas procesadas)
+            if (Remesa::where('nro_carga', $nroCarga)->where('usuario_id', $userId)->exists()) {
+                Storage::delete($tempPath);
+                return [
+                    'success' => false,
+                    'error' => "La remesa con número de carga {$nroCarga} ya está cargada en el sistema"
+                ];
+            }
+            
             $remesaPendiente = RemesaPendiente::create([
                 'nro_carga' => $nroCarga,
                 'nombre_archivo' => $file->getClientOriginalName(),
