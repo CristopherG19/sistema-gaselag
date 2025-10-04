@@ -659,16 +659,73 @@ class RemesaController extends Controller
             'centro_servicio' => 'required|string',
         ]);
         
+        $centroServicio = $request->centro_servicio;
+        
+        // Intentar obtener datos de sesión primero (flujo clásico)
         $rows = session('temp_dbf_data');
         $nroCarga = session('temp_nro_carga');
-        $centroServicio = $request->centro_servicio;
         $nombreArchivo = session('temp_dbf_nombre');
         $tempPath = session('temp_dbf_file');
+        $remesaId = session('temp_remesa_id');
+        
+        // Si no hay datos de sesión, buscar en remesas pendientes
+        if (!$rows || !$nroCarga) {
+            Log::info('No hay datos de sesión, buscando remesa pendiente...');
+            
+            // Buscar por ID de sesión si existe
+            if ($remesaId) {
+                $remesaPendiente = RemesaPendiente::where('id', $remesaId)
+                                               ->where('usuario_id', Auth::id())
+                                               ->first();
+            } else {
+                // Buscar la más reciente del usuario
+                $remesaPendiente = RemesaPendiente::where('usuario_id', Auth::id())
+                                               ->orderBy('created_at', 'desc')
+                                               ->first();
+            }
+            
+            if (!$remesaPendiente) {
+                Log::error('No se encontró remesa pendiente');
+                return redirect()->route('remesa.upload.form')
+                    ->withErrors(['error' => 'No se encontraron datos para procesar. Intenta cargar la remesa nuevamente.']);
+            }
+            
+            // Obtener datos de la remesa pendiente
+            $datosDbf = $remesaPendiente->getDatosDbfArray();
+            
+            // Determinar el formato de los datos
+            if (isset($datosDbf['rows']) && is_array($datosDbf['rows'])) {
+                $rows = $datosDbf['rows'];
+            } elseif (is_array($datosDbf) && isset($datosDbf[0])) {
+                $rows = $datosDbf;
+            } else {
+                Log::error('Datos de remesa pendiente en formato inválido', [
+                    'remesa_id' => $remesaPendiente->id,
+                    'datos_keys' => array_keys($datosDbf)
+                ]);
+                return redirect()->route('remesa.upload.form')
+                    ->withErrors(['error' => 'Los datos de la remesa están en formato inválido. Intenta cargar la remesa nuevamente.']);
+            }
+            
+            $nroCarga = $remesaPendiente->nro_carga;
+            $nombreArchivo = $remesaPendiente->nombre_archivo;
+            
+            Log::info('Datos cargados desde remesa pendiente', [
+                'remesa_id' => $remesaPendiente->id,
+                'total_rows' => count($rows),
+                'nro_carga' => $nroCarga,
+                'archivo' => $nombreArchivo
+            ]);
+        }
         
         if (!$rows || !$nroCarga || !$centroServicio) {
-            Log::error('No hay datos en sesión para procesar');
+            Log::error('Faltan datos necesarios para procesar', [
+                'has_rows' => !empty($rows),
+                'has_nro_carga' => !empty($nroCarga),
+                'has_centro_servicio' => !empty($centroServicio)
+            ]);
             return redirect()->route('remesa.upload.form')
-                ->withErrors(['error' => 'No hay datos para procesar. Inicia el proceso de nuevo.']);
+                ->withErrors(['error' => 'No se encontraron datos para procesar. Intenta cargar la remesa nuevamente.']);
         }
         
         Log::info('Datos de sesión OK', [
@@ -679,24 +736,30 @@ class RemesaController extends Controller
         ]);
         
         try {
-            // Obtener el ID de la remesa pendiente desde la sesión
-            $remesaId = session('temp_remesa_id');
+            // Buscar la remesa pendiente (puede venir de sesión o de BD)
+            $remesaIdSesion = session('temp_remesa_id');
+            $remesaPendienteParaEliminar = null;
             
-            if (!$remesaId) {
-                Log::error('No hay ID de remesa pendiente en sesión');
-                return redirect()->route('remesa.upload.form')
-                    ->withErrors(['error' => 'No hay datos para procesar. Inicia el proceso de nuevo.']);
+            if ($remesaIdSesion) {
+                // Flujo clásico: buscar por ID de sesión
+                $remesaPendienteParaEliminar = RemesaPendiente::where('id', $remesaIdSesion)
+                                                           ->where('usuario_id', Auth::id())
+                                                           ->first();
             }
-
-            // Verificar que la remesa pendiente existe
-            $remesaPendiente = RemesaPendiente::where('id', $remesaId)
-                                   ->where('usuario_id', Auth::id())
-                                   ->first();
             
-            if (!$remesaPendiente) {
-                Log::error('Remesa pendiente no encontrada', ['remesa_id' => $remesaId]);
-                return redirect()->route('remesa.upload.form')
-                    ->withErrors(['error' => 'No se encontró la remesa pendiente. Inicia el proceso de nuevo.']);
+            if (!$remesaPendienteParaEliminar) {
+                // Flujo desde lista: buscar por nro_carga
+                $remesaPendienteParaEliminar = RemesaPendiente::where('nro_carga', $nroCarga)
+                                                           ->where('usuario_id', Auth::id())
+                                                           ->first();
+            }
+            
+            if (!$remesaPendienteParaEliminar) {
+                Log::warning('No se encontró remesa pendiente para eliminar', [
+                    'nro_carga' => $nroCarga,
+                    'sesion_id' => $remesaIdSesion
+                ]);
+                // Continuar sin eliminar, ya que los datos están disponibles
             }
 
             // Verificar duplicados para el centro de servicio
@@ -718,12 +781,14 @@ class RemesaController extends Controller
                 $nombreArchivo, 
                 $nroCarga, 
                 $centroServicio,
-                $remesaId  // Excluir la remesa pendiente actual
+                $remesaPendienteParaEliminar ? $remesaPendienteParaEliminar->id : null  // Excluir la remesa pendiente actual
             );
             
             // Eliminar el registro pendiente de la base de datos
-            $remesaPendiente->delete();
-            Log::info('Remesa pendiente eliminada de la base de datos', ['remesa_id' => $remesaId]);
+            if ($remesaPendienteParaEliminar) {
+                $remesaPendienteParaEliminar->delete();
+                Log::info('Remesa pendiente eliminada de la base de datos', ['remesa_id' => $remesaPendienteParaEliminar->id]);
+            }
             
             // Limpiar archivo temporal y sesión
             if ($tempPath && Storage::exists($tempPath)) {
