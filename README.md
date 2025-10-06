@@ -10,10 +10,12 @@ Sistema web desarrollado en Laravel para la gestión de remesas de archivos DBF 
 ## 🚀 Características Principales
 
 ### 📊 **Gestión de Remesas**
-- **Carga de archivos DBF** (máximo 50MB)
+- **Carga de archivos DBF** (máximo 50MB, individual o masiva)
 - **Procesamiento automático** de datos de SEDAPAL
-- **Flujo de dos pasos**: Subir → Configurar → Procesar
-- **Validación de duplicados** por número de carga
+- **Sistema de centros de servicio** obligatorio para organización
+- **Validación de duplicados** por número de carga + usuario + centro de servicio
+- **Procesamiento directo** para remesas con centro preconfigurado
+- **Procesamiento por lotes** optimizado para memoria
 - **Generación automática de códigos OC**
 
 ### 👥 **Sistema de Roles**
@@ -27,6 +29,9 @@ Sistema web desarrollado en Laravel para la gestión de remesas de archivos DBF 
 - **Filtros avanzados** por centro de servicio, fecha, cliente
 - **Paginación optimizada** y responsive
 - **Dashboard con estadísticas** en tiempo real
+- **13 comandos de diagnóstico** para administración avanzada
+- **Optimización de memoria** para datasets grandes
+- **Procesamiento inteligente** con botones contextuales
 
 ### 📱 **Interfaz de Usuario**
 - **Diseño responsive** con Bootstrap 5
@@ -319,8 +324,10 @@ icacls bootstrap\cache /grant Everyone:F /T
 
 #### **`remesas_pendientes`**
 - Archivos subidos pendientes de procesar
-- Datos temporales en formato JSON
-- Se eliminan automáticamente al procesar
+- Datos temporales en formato JSON con metadata
+- **Centro de servicio** almacenado en metadata JSON
+- Validación de duplicados considerando centro de servicio
+- Se eliminan automáticamente al procesar exitosamente
 
 #### **`cambio_passwords`**
 - Historial de cambios de contraseña
@@ -333,11 +340,13 @@ icacls bootstrap\cache /grant Everyone:F /T
 ## 🚀 Funcionalidades Detalladas
 
 ### **📤 Carga de Remesas**
-1. **Subir archivo DBF** (validación automática)
-2. **Vista previa** de datos parseados
-3. **Selección de centro de servicio**
-4. **Procesamiento masivo** con generación de OC
-5. **Validación de duplicados**
+1. **Subir archivo DBF** individual o múltiples archivos (validación automática)
+2. **Selección obligatoria** de centro de servicio
+3. **Vista previa** de datos parseados (opcional)
+4. **Procesamiento directo** o manual según configuración
+5. **Procesamiento masivo** optimizado con generación de OC
+6. **Validación de duplicados** considerando centro de servicio
+7. **Gestión de remesas pendientes** con comandos de diagnóstico
 
 ### **👁️ Visualización de Datos**
 - **Lista de remesas** con filtros avanzados
@@ -356,6 +365,38 @@ icacls bootstrap\cache /grant Everyone:F /T
 - **Gestión de permisos** granular
 - **Historial de contraseñas**
 - **Logs de acceso**
+
+### **⚡ Comandos de Administración**
+El sistema incluye 13 comandos de consola para diagnóstico y administración:
+
+#### **Comandos de Verificación:**
+```bash
+php artisan remesas:check-exists {nro_carga}       # Verificar existencia de remesa
+php artisan remesas:check-cs {nro_carga}           # Verificar centros de servicio
+php artisan remesas:verificar {nro_carga} {usuario_id} {centro_servicio?}  # Verificación específica
+php artisan remesas:verificar-ultimas              # Ver últimas remesas procesadas
+```
+
+#### **Comandos de Diagnóstico:**
+```bash
+php artisan debug:remesas-pendientes               # Estado de remesas pendientes
+php artisan remesas:investigar-pendiente           # Diagnóstico completo de pendientes
+php artisan db:show-structure {table}              # Estructura de tablas
+```
+
+#### **Comandos de Procesamiento:**
+```bash
+php artisan remesas:procesar-pendiente {id}        # Procesar pendiente específica
+php artisan remesas:procesar-pendientes --usuario_id={id}  # Procesamiento por lotes
+```
+
+#### **Comandos de Limpieza:**
+```bash
+php artisan remesas:clean-inconsistent             # Limpiar pendientes duplicados
+php artisan remesas:limpiar-procesados             # Eliminar pendientes ya procesados
+php artisan remesas:eliminar-pendiente {id}        # Eliminar pendiente específica
+php artisan remesas:limpiar-todas --force          # Reset completo (solo testing)
+```
 
 ## 🔒 Seguridad
 
@@ -519,6 +560,16 @@ php artisan view:clear
 ```
 
 ## 📝 Changelog
+
+### **v1.2.0** - 2025-10-05
+- 🚀 **Sistema de centros de servicio**: Implementación completa
+- ⚡ **Validación avanzada de duplicados**: Considera centro + usuario + nro_carga
+- 🔧 **13 comandos de administración**: Suite completa de diagnóstico
+- 💾 **Optimización de memoria**: Procesamiento por chunks para datasets grandes
+- 📊 **Procesamiento directo**: Botones inteligentes según configuración
+- 🎨 **Mejoras de UI/UX**: Columna centro servicio, mensajes formateados
+- 🐛 **Corrección MySQL**: Eliminación de ORDER BY problemáticos
+- 🔒 **Validación tipo-segura**: Comandos robustos con manejo de errores
 
 ### **v1.1.0** - 2025-10-03
 - ✅ **Cambio de nombre de base de datos**: `sistema_login` → `BD_GASELAG_SISTEMA`
