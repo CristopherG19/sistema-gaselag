@@ -179,6 +179,7 @@ class RemesaController extends Controller
         Log::info('=== SUBIR MÚLTIPLES ARCHIVOS INICIADO ===', ['user' => Auth::id()]);
         
         $request->validate([
+            'centro_servicio' => 'required|string|in:' . implode(',', array_keys(config('centros_servicio.centros'))),
             'archivos_dbf' => 'required|array|min:1|max:100', // Máximo 100 archivos - ampliado para lotes grandes
             'archivos_dbf.*' => 'required|file|mimes:dbf|max:51200', // 50MB max por archivo
         ]);
@@ -197,7 +198,7 @@ class RemesaController extends Controller
                     $progreso = $index + 1;
                     Log::info("Procesando archivo {$progreso}/{$totalArchivos}: {$file->getClientOriginalName()}");
                     
-                    $resultado = $this->procesarArchivoIndividual($file, $index);
+                    $resultado = $this->procesarArchivoIndividual($file, $index, $request->input('centro_servicio'));
                     if ($resultado['success']) {
                         $archivosProcesados[] = $resultado['data'];
                         Log::info("✅ Archivo {$progreso}/{$totalArchivos} procesado exitosamente");
@@ -222,7 +223,8 @@ class RemesaController extends Controller
             }
 
             if (empty($archivosProcesados)) {
-                return back()->withErrors(['error' => 'No se pudo procesar ningún archivo. ' . implode(', ', $errores)]);
+                $mensajeError = $this->formatearErroresDuplicados($errores);
+                return back()->withErrors(['error' => $mensajeError]);
             }
 
             return redirect()->route('remesa.lista')
@@ -244,6 +246,7 @@ class RemesaController extends Controller
     private function subirArchivoUnico(Request $request)
     {
         $request->validate([
+            'centro_servicio' => 'required|string|in:' . implode(',', array_keys(config('centros_servicio.centros'))),
             'archivo_dbf' => 'required|file|mimes:dbf|max:51200', // 50MB max
         ]);
 
@@ -269,6 +272,30 @@ class RemesaController extends Controller
 
             // Extraer número de carga
             $nroCarga = $this->extractNroCarga($rows[0] ?? []);
+            $centroServicio = $request->input('centro_servicio');
+            $userId = Auth::id();
+            $nombreArchivo = $file->getClientOriginalName();
+            
+            // Verificar duplicados por nombre de archivo
+            if (RemesaPendiente::existeArchivoPorUsuario($nombreArchivo, $userId)) {
+                Storage::delete($tempPath);
+                return back()->withErrors(['error' => "El archivo {$nombreArchivo} ya existe en pendientes"]);
+            }
+            
+            // Verificar duplicados por número de carga en pendientes considerando centro de servicio
+            if (RemesaPendiente::existeNroCargaPorUsuarioYCentro($nroCarga, $userId, $centroServicio)) {
+                Storage::delete($tempPath);
+                return back()->withErrors(['error' => "Ya existe una remesa pendiente con el número de carga {$nroCarga} para el centro de servicio {$centroServicio}"]);
+            }
+            
+            // Verificar si ya existe en la tabla principal (remesas procesadas)
+            if (Remesa::where('nro_carga', $nroCarga)
+                     ->where('usuario_id', $userId)
+                     ->where('centro_servicio', $centroServicio)
+                     ->exists()) {
+                Storage::delete($tempPath);
+                return back()->withErrors(['error' => "La remesa con número de carga {$nroCarga} ya está cargada en el sistema para el centro de servicio {$centroServicio}"]);
+            }
             
             // Crear registro pendiente en la nueva tabla
             $datosDbf = [];
@@ -325,7 +352,15 @@ class RemesaController extends Controller
                 'nombre_archivo' => $file->getClientOriginalName(),
                 'nro_carga' => $nroCarga,
                 'fecha_carga' => now(),
-                'datos_dbf' => $datosParaGuardar, // Guardar todos los registros, no solo el primero
+                'datos_dbf' => [
+                    'rows' => $datosParaGuardar,
+                    'metadata' => [
+                        'total_records' => count($datosParaGuardar),
+                        'processed_at' => now()->toISOString(),
+                        'file_size' => $file->getSize(),
+                        'centro_servicio' => $centroServicio,
+                    ]
+                ],
             ]);
 
             // Guardar datos en sesión para el siguiente paso
@@ -360,7 +395,7 @@ class RemesaController extends Controller
     /**
      * PROCESAR ARCHIVO INDIVIDUAL (HELPER PARA MÚLTIPLES ARCHIVOS)
      */
-    private function procesarArchivoIndividual($file, $index)
+    private function procesarArchivoIndividual($file, $index, $centroServicio = null)
     {
         try {
             $tempPath = $file->store('temp_dbf');
@@ -369,7 +404,8 @@ class RemesaController extends Controller
             Log::info('Procesando archivo individual', [
                 'archivo' => $file->getClientOriginalName(),
                 'temp_path' => $tempPath,
-                'index' => $index
+                'index' => $index,
+                'centro_servicio' => $centroServicio
             ]);
 
             // Parsear archivo DBF
@@ -400,21 +436,24 @@ class RemesaController extends Controller
                 ];
             }
             
-            // Verificar duplicados por número de carga en pendientes
-            if (RemesaPendiente::existeNroCargaPorUsuario($nroCarga, $userId)) {
+            // Verificar duplicados por número de carga en pendientes considerando centro de servicio
+            if (RemesaPendiente::existeNroCargaPorUsuarioYCentro($nroCarga, $userId, $centroServicio)) {
                 Storage::delete($tempPath);
                 return [
                     'success' => false,
-                    'error' => "Ya existe una remesa pendiente con el número de carga {$nroCarga}"
+                    'error' => "Ya existe una remesa pendiente con el número de carga {$nroCarga} para el centro de servicio {$centroServicio}"
                 ];
             }
             
             // Verificar si ya existe en la tabla principal (remesas procesadas)
-            if (Remesa::where('nro_carga', $nroCarga)->where('usuario_id', $userId)->exists()) {
+            if (Remesa::where('nro_carga', $nroCarga)
+                     ->where('usuario_id', $userId)
+                     ->where('centro_servicio', $centroServicio)
+                     ->exists()) {
                 Storage::delete($tempPath);
                 return [
                     'success' => false,
-                    'error' => "La remesa con número de carga {$nroCarga} ya está cargada en el sistema"
+                    'error' => "La remesa con número de carga {$nroCarga} ya está cargada en el sistema para el centro de servicio {$centroServicio}"
                 ];
             }
             
@@ -429,6 +468,7 @@ class RemesaController extends Controller
                         'total_records' => count($rows),
                         'processed_at' => now()->toISOString(),
                         'file_size' => $file->getSize(),
+                        'centro_servicio' => $centroServicio,
                     ]
                 ]
             ]);
@@ -575,10 +615,22 @@ class RemesaController extends Controller
                 ]);
                 
                 if (is_array($datos_dbf) && !empty($datos_dbf)) {
-                    // Verificar si contiene registros reales o solo metadatos
-                    if (isset($datos_dbf[0]) && is_array($datos_dbf[0]) && isset($datos_dbf[0]['NIS'])) {
+                    // Manejar formato nuevo (con 'rows' y 'metadata')
+                    if (isset($datos_dbf['rows']) && is_array($datos_dbf['rows'])) {
+                        $rows = $datos_dbf['rows'];
+                        Log::info('Usando formato nuevo con rows y metadata', [
+                            'remesa_id' => $remesaPendiente->id,
+                            'total_rows' => count($rows)
+                        ]);
+                    }
+                    // Formato antiguo: verificar si contiene registros reales directamente
+                    elseif (isset($datos_dbf[0]) && is_array($datos_dbf[0]) && isset($datos_dbf[0]['NIS'])) {
                         // Son registros reales del DBF
                         $rows = $datos_dbf;
+                        Log::info('Usando formato antiguo directo', [
+                            'remesa_id' => $remesaPendiente->id,
+                            'total_rows' => count($rows)
+                        ]);
                     } elseif (isset($datos_dbf['first_row_sample']) && is_array($datos_dbf['first_row_sample'])) {
                         // Son metadatos, usar el sample como único registro
                         $rows = [$datos_dbf['first_row_sample']];
@@ -590,7 +642,8 @@ class RemesaController extends Controller
                         // Estructura desconocida
                         Log::error('Estructura de datos_dbf desconocida', [
                             'remesa_id' => $remesaPendiente->id,
-                            'structure' => array_keys($datos_dbf)
+                            'structure' => array_keys($datos_dbf),
+                            'first_level_sample' => array_slice($datos_dbf, 0, 1, true)
                         ]);
                         $rows = [];
                     }
@@ -646,6 +699,70 @@ class RemesaController extends Controller
             'centros_servicio' => $centrosServicio,
             'preview_data' => array_slice($rows, 0, 5) // Mostrar solo 5 registros de preview
         ]);
+    }
+
+    /**
+     * PROCESAR REMESA PENDIENTE DIRECTAMENTE - SIN FORMULARIO ADICIONAL
+     */
+    public function procesarPendienteDirecto($id)
+    {
+        Log::info('=== PROCESAR PENDIENTE DIRECTO INICIADO ===', [
+            'user' => Auth::id(),
+            'remesa_id' => $id
+        ]);
+        
+        // Buscar la remesa pendiente
+        $remesaPendiente = RemesaPendiente::where('id', $id)
+                                       ->where('usuario_id', Auth::id())
+                                       ->first();
+        
+        if (!$remesaPendiente) {
+            return redirect()->route('remesa.lista')
+                ->withErrors(['error' => 'Remesa pendiente no encontrada.']);
+        }
+        
+        // Extraer centro de servicio de los metadatos almacenados
+        $datosDbf = $remesaPendiente->getDatosDbfArray();
+        $centroServicio = null;
+        
+        if (isset($datosDbf['metadata']['centro_servicio'])) {
+            $centroServicio = $datosDbf['metadata']['centro_servicio'];
+        }
+        
+        if (!$centroServicio) {
+            Log::warning('Centro de servicio no encontrado en metadata', [
+                'remesa_id' => $id,
+                'metadata' => $datosDbf['metadata'] ?? 'No metadata'
+            ]);
+            return redirect()->route('remesa.lista')
+                ->withErrors(['error' => 'Centro de servicio no encontrado. Use el procesamiento manual.']);
+        }
+        
+        Log::info('Centro de servicio extraído de metadata', [
+            'remesa_id' => $id,
+            'centro_servicio' => $centroServicio
+        ]);
+        
+        // Procesar la remesa directamente
+        try {
+            $resultado = $this->procesarPendienteABD($remesaPendiente);
+            
+            if ($resultado['success']) {
+                return redirect()->route('remesa.lista')
+                    ->with('success', "Remesa procesada exitosamente. {$resultado['registros_insertados']} registros insertados para {$centroServicio}.");
+            } else {
+                return redirect()->route('remesa.lista')
+                    ->withErrors(['error' => "Error al procesar: {$resultado['error']}"]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error en procesamiento directo', [
+                'remesa_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            
+            return redirect()->route('remesa.lista')
+                ->withErrors(['error' => 'Error interno al procesar la remesa.']);
+        }
     }
 
     /**
@@ -982,9 +1099,25 @@ class RemesaController extends Controller
                 ->orderBy('fecha_carga', 'desc')
                 ->paginate($perPage)
                 ->through(function ($remesa) {
-                    // Contar registros reales en datos_dbf
+                    // Contar registros reales en datos_dbf (formato nuevo y antiguo)
                     $datos_dbf = is_array($remesa->datos_dbf) ? $remesa->datos_dbf : json_decode($remesa->datos_dbf, true);
-                    $totalRegistros = is_array($datos_dbf) ? count($datos_dbf) : 1;
+                    
+                    if (isset($datos_dbf['rows']) && is_array($datos_dbf['rows'])) {
+                        // Formato nuevo: datos están en ['rows']
+                        $totalRegistros = count($datos_dbf['rows']);
+                    } elseif (is_array($datos_dbf) && isset($datos_dbf[0])) {
+                        // Formato antiguo: datos están directamente en el array
+                        $totalRegistros = count($datos_dbf);
+                    } else {
+                        // Fallback
+                        $totalRegistros = 1;
+                    }
+                    
+                    // Extraer centro de servicio de metadatos JSON
+                    $centroServicio = null;
+                    if (is_array($datos_dbf) && isset($datos_dbf['metadata']['centro_servicio'])) {
+                        $centroServicio = $datos_dbf['metadata']['centro_servicio'];
+                    }
                     
                     return (object) [
                         'nro_carga' => $remesa->nro_carga,
@@ -997,6 +1130,7 @@ class RemesaController extends Controller
                         'fecha_edicion' => null,
                         'usuario_id' => $remesa->usuario_id,
                         'usuario_nombre' => $remesa->usuario->correo ?? 'N/A',
+                        'centro_servicio' => $centroServicio,
                     ];
                 });
         }
@@ -1026,9 +1160,10 @@ class RemesaController extends Controller
                 MAX(fecha_edicion) as fecha_edicion,
                 COUNT(*) as total_registros,
                 MIN(id) as primer_id,
-                MIN(usuario_id) as usuario_id
+                MIN(usuario_id) as usuario_id,
+                MIN(centro_servicio) as centro_servicio
             ')
-            ->groupBy('nro_carga')
+            ->groupBy('nro_carga', 'usuario_id', 'centro_servicio')
             ->orderBy('fecha_carga', 'desc')
             ->paginate($perPage)
             ->through(function ($remesa) {
@@ -1064,7 +1199,23 @@ class RemesaController extends Controller
                 ->get()
                 ->map(function ($remesa) {
                     $datos_dbf = is_array($remesa->datos_dbf) ? $remesa->datos_dbf : json_decode($remesa->datos_dbf, true);
-                    $totalRegistros = is_array($datos_dbf) ? count($datos_dbf) : 1;
+                    
+                    if (isset($datos_dbf['rows']) && is_array($datos_dbf['rows'])) {
+                        // Formato nuevo: datos están en ['rows']
+                        $totalRegistros = count($datos_dbf['rows']);
+                    } elseif (is_array($datos_dbf) && isset($datos_dbf[0])) {
+                        // Formato antiguo: datos están directamente en el array
+                        $totalRegistros = count($datos_dbf);
+                    } else {
+                        // Fallback
+                        $totalRegistros = 1;
+                    }
+                    
+                    // Extraer centro de servicio de metadatos JSON
+                    $centroServicio = null;
+                    if (is_array($datos_dbf) && isset($datos_dbf['metadata']['centro_servicio'])) {
+                        $centroServicio = $datos_dbf['metadata']['centro_servicio'];
+                    }
                     
                     return (object) [
                         'nro_carga' => $remesa->nro_carga,
@@ -1077,10 +1228,11 @@ class RemesaController extends Controller
                         'fecha_edicion' => null,
                         'usuario_id' => $remesa->usuario_id,
                         'usuario_nombre' => $remesa->usuario->correo ?? 'N/A',
+                        'centro_servicio' => $centroServicio,
                     ];
                 });
             
-            // Preparar datos de cargadas
+            // Preparar datos de cargadas (mostrar todas las remesas, no agrupar por nro_carga)
             $cargadas = $cargadasQuery
                 ->selectRaw('
                     nro_carga, 
@@ -1091,9 +1243,10 @@ class RemesaController extends Controller
                     MAX(fecha_edicion) as fecha_edicion,
                     COUNT(*) as total_registros,
                     MIN(id) as primer_id,
-                    MIN(usuario_id) as usuario_id
+                    MIN(usuario_id) as usuario_id,
+                    MIN(centro_servicio) as centro_servicio
                 ')
-                ->groupBy('nro_carga')
+                ->groupBy('nro_carga', 'usuario_id', 'centro_servicio')
                 ->get()
                 ->map(function ($remesa) {
                     $usuario = \App\Models\Usuario::find($remesa->usuario_id);
@@ -1594,72 +1747,80 @@ class RemesaController extends Controller
     {
         $usuario = Auth::user();
         
-        // Obtener todos los archivos pendientes del usuario
-        $pendientesQuery = RemesaPendiente::orderBy('created_at', 'asc');
+        // Verificar si hay archivos pendientes sin cargar todos en memoria (sin ordenar para evitar problema de memoria MySQL)
+        $pendientesQuery = RemesaPendiente::query();
         if (!$usuario->isAdmin()) {
             $pendientesQuery->where('usuario_id', Auth::id());
         }
         
-        $archivosPendientes = $pendientesQuery->get();
+        $totalPendientes = $pendientesQuery->count();
         
-        if ($archivosPendientes->isEmpty()) {
+        if ($totalPendientes === 0) {
             return redirect()->route('remesa.lista')
                 ->with('warning', 'No hay archivos pendientes para procesar.');
         }
 
         Log::info('=== PROCESAMIENTO MASIVO DE PENDIENTES INICIADO ===', [
             'user' => Auth::id(),
-            'total_archivos' => $archivosPendientes->count()
+            'total_archivos' => $totalPendientes
         ]);
 
         $procesados = [];
         $errores = [];
         $totalRegistros = 0;
+        $procesadosCount = 0;
 
         // Configurar límites para procesamiento masivo
         ini_set('memory_limit', config('remesas.dbf.processing.memory_limit', '1024M'));
         ini_set('max_execution_time', config('remesas.dbf.processing.time_limit', 900)); // 15 minutos
 
         try {
-            foreach ($archivosPendientes as $index => $pendiente) {
-                $progreso = $index + 1;
-                $total = $archivosPendientes->count();
-                
-                Log::info("Procesando archivo pendiente {$progreso}/{$total}: {$pendiente->nombre_archivo}");
-                
-                try {
-                    // Procesar archivo pendiente a BD
-                    $resultado = $this->procesarPendienteABD($pendiente);
+            // Procesar por lotes para evitar problemas de memoria (sin ordenar)
+            $chunkQuery = RemesaPendiente::query();
+            if (!$usuario->isAdmin()) {
+                $chunkQuery->where('usuario_id', Auth::id());
+            }
+
+            $chunkQuery->chunk(10, function ($archivosPendientes) use (&$procesados, &$errores, &$totalRegistros, &$procesadosCount, $totalPendientes) {
+                foreach ($archivosPendientes as $pendiente) {
+                    $procesadosCount++;
                     
-                    if ($resultado['success']) {
-                        $procesados[] = [
-                            'archivo' => $pendiente->nombre_archivo,
-                            'nro_carga' => $pendiente->nro_carga,
-                            'registros' => $resultado['registros_insertados']
-                        ];
-                        $totalRegistros += $resultado['registros_insertados'];
+                    Log::info("Procesando archivo pendiente {$procesadosCount}/{$totalPendientes}: {$pendiente->nombre_archivo}");
+                    
+                    try {
+                        // Procesar archivo pendiente a BD
+                        $resultado = $this->procesarPendienteABD($pendiente);
                         
-                        Log::info("✅ Archivo {$progreso}/{$total} procesado exitosamente", [
+                        if ($resultado['success']) {
+                            $procesados[] = [
+                                'archivo' => $pendiente->nombre_archivo,
+                                'nro_carga' => $pendiente->nro_carga,
+                                'registros' => $resultado['registros_insertados']
+                            ];
+                            $totalRegistros += $resultado['registros_insertados'];
+                            
+                            Log::info("✅ Archivo {$procesadosCount}/{$totalPendientes} procesado exitosamente", [
+                                'archivo' => $pendiente->nombre_archivo,
+                                'registros' => $resultado['registros_insertados']
+                            ]);
+                        } else {
+                            $errores[] = "Error en {$pendiente->nombre_archivo}: {$resultado['error']}";
+                            Log::warning("⚠️ Error en archivo {$procesadosCount}/{$totalPendientes}", [
+                                'archivo' => $pendiente->nombre_archivo,
+                                'error' => $resultado['error']
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        $errores[] = "Error crítico en {$pendiente->nombre_archivo}: " . $e->getMessage();
+                        Log::error('Error crítico procesando pendiente', [
                             'archivo' => $pendiente->nombre_archivo,
-                            'registros' => $resultado['registros_insertados']
-                        ]);
-                    } else {
-                        $errores[] = "Error en {$pendiente->nombre_archivo}: {$resultado['error']}";
-                        Log::warning("⚠️ Error en archivo {$progreso}/{$total}", [
-                            'archivo' => $pendiente->nombre_archivo,
-                            'error' => $resultado['error']
+                            'progreso' => "{$procesadosCount}/{$totalPendientes}",
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
                         ]);
                     }
-                } catch (\Exception $e) {
-                    $errores[] = "Error crítico en {$pendiente->nombre_archivo}: " . $e->getMessage();
-                    Log::error('Error crítico procesando pendiente', [
-                        'archivo' => $pendiente->nombre_archivo,
-                        'progreso' => "{$progreso}/{$total}",
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
-                    ]);
                 }
-            }
+            });
 
             // Preparar mensaje de resultado
             $mensaje = "Procesamiento masivo completado: ";
@@ -1678,8 +1839,9 @@ class RemesaController extends Controller
             ]);
 
             if (empty($procesados)) {
+                $mensajeError = $this->formatearErroresDuplicados($errores);
                 return redirect()->route('remesa.lista')
-                    ->withErrors(['error' => 'No se pudo procesar ningún archivo. Errores: ' . implode(', ', $errores)]);
+                    ->withErrors(['error' => $mensajeError]);
             }
 
             $tipoMensaje = empty($errores) ? 'success' : 'warning';
@@ -1709,12 +1871,18 @@ class RemesaController extends Controller
                 'nro_carga' => $pendiente->nro_carga
             ]);
 
-            // Verificar si ya existe la remesa
-            $existeRemesa = Remesa::where('nro_carga', $pendiente->nro_carga)->exists();
+            // Obtener centro de servicio de los metadatos
+            $centroServicio = $pendiente->datos_dbf['metadata']['centro_servicio'] ?? null;
+            
+            // Verificar si ya existe la remesa considerando centro de servicio
+            $existeRemesa = Remesa::where('nro_carga', $pendiente->nro_carga)
+                                  ->where('usuario_id', $pendiente->usuario_id)
+                                  ->where('centro_servicio', $centroServicio)
+                                  ->exists();
             if ($existeRemesa) {
                 return [
                     'success' => false,
-                    'error' => 'La remesa ya existe en la base de datos'
+                    'error' => "La remesa ya existe en la base de datos para el centro de servicio {$centroServicio}"
                 ];
             }
 
@@ -1748,5 +1916,39 @@ class RemesaController extends Controller
                 'error' => $e->getMessage()
             ];
         }
+    }
+
+    /**
+     * Formatear errores de remesas duplicadas de forma más legible
+     */
+    private function formatearErroresDuplicados(array $errores): string
+    {
+        if (empty($errores)) {
+            return '';
+        }
+
+        $erroresFormateados = [];
+        $contadorPorCarga = [];
+        
+        foreach ($errores as $error) {
+            // Extraer número de carga del mensaje de error
+            if (preg_match('/número de carga (\d+)/', $error, $matches)) {
+                $nroCarga = $matches[1];
+                if (!isset($contadorPorCarga[$nroCarga])) {
+                    $contadorPorCarga[$nroCarga] = 0;
+                }
+                $contadorPorCarga[$nroCarga]++;
+            }
+        }
+
+        $mensaje = "Se encontraron las siguientes remesas duplicadas:\n\n";
+        
+        foreach ($contadorPorCarga as $nroCarga => $cantidad) {
+            $mensaje .= "• Remesa #{$nroCarga}: {$cantidad} archivo" . ($cantidad > 1 ? 's' : '') . " duplicado" . ($cantidad > 1 ? 's' : '') . "\n";
+        }
+        
+        $mensaje .= "\nEstas remesas ya están cargadas en el sistema para el centro de servicio seleccionado.";
+        
+        return $mensaje;
     }
 }

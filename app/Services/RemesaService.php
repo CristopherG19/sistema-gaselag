@@ -118,7 +118,7 @@ class RemesaService
      * @param int|null $excludeRemesaId ID de remesa a excluir de la verificación
      * @return Remesa|null
      */
-    public function checkDuplicateNroCarga(?string $nroCarga, int $userId, ?int $excludeRemesaId = null): ?Remesa
+    public function checkDuplicateNroCarga(?string $nroCarga, int $userId, ?int $excludeRemesaId = null, ?string $centroServicio = null): ?Remesa
     {
         if (!$nroCarga) {
             return null;
@@ -126,6 +126,11 @@ class RemesaService
 
         $query = Remesa::where('nro_carga', $nroCarga)
                       ->where('usuario_id', $userId);
+        
+        // Si se especifica centro de servicio, incluirlo en la validación
+        if ($centroServicio) {
+            $query->where('centro_servicio', $centroServicio);
+        }
         
         if ($excludeRemesaId) {
             $query->where('id', '!=', $excludeRemesaId);
@@ -177,7 +182,7 @@ class RemesaService
         }
 
         // Verificar duplicados antes de procesar - RECHAZAR INMEDIATAMENTE
-        $existingRemesa = $this->checkDuplicateNroCarga($nroCarga, $userId, $excludeRemesaId);
+        $existingRemesa = $this->checkDuplicateNroCarga($nroCarga, $userId, $excludeRemesaId, $centroServicio);
         if ($existingRemesa) {
             Log::warning('Intento de carga duplicada rechazado', [
                 'nro_carga' => $nroCarga,
@@ -285,6 +290,7 @@ class RemesaService
         return [
             'success' => true,
             'saved_records' => $savedRecords,
+            'registros_insertados' => $savedRecords,
             'errors' => $errors,
             'message' => $this->generateSuccessMessage($savedRecords, $errors)
         ];
@@ -793,8 +799,10 @@ class RemesaService
                 'registros_encontrados' => count($rows)
             ]);
 
-            // Extraer centro de servicio de los datos almacenados si no está definido
-            $centroServicio = $datosDbf['centro_servicio'] ?? null;
+            // Extraer centro de servicio de los metadatos almacenados
+            $centroServicio = $datosDbf['metadata']['centro_servicio'] ?? 
+                            $datosDbf['centro_servicio'] ?? 
+                            null;
 
             // Insertar masivamente en la base de datos
             $resultadoInsercion = $this->bulkInsert(

@@ -192,6 +192,7 @@
                                     <th>Fecha Carga</th>
                                     <th>Estado</th>
                                     <th>Registros</th>
+                                    <th>Centro Servicio</th>
                                     @if(Auth::user()->isAdmin())
                                         <th>Usuario</th>
                                     @endif
@@ -226,6 +227,9 @@
                                             </td>
                                             <td>
                                                 <span class="badge bg-secondary">{{ $remesa->total_registros }}</span>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">{{ $remesa->centro_servicio ?? 'N/A' }}</small>
                                             </td>
                                             @if(Auth::user()->isAdmin())
                                                 <td>
@@ -262,11 +266,22 @@
                                                     @else
                                                         @if(Auth::user()->isAdmin())
                                                             <div class="btn-group btn-group-sm" role="group">
-                                                                <a href="{{ route('remesa.procesar.form', ['id' => $remesa->primer_id ?? $remesa->id]) }}" 
-                                                                   class="btn btn-success" 
-                                                                   title="Procesar remesa pendiente">
-                                                                    <i class="bi bi-play-circle"></i> Procesar
-                                                                </a>
+                                                                @if($remesa->centro_servicio)
+                                                                    <!-- Procesamiento directo si ya tiene centro de servicio -->
+                                                                    <form method="POST" action="{{ route('remesa.procesar.directo', $remesa->primer_id ?? $remesa->id) }}" style="display: inline;">
+                                                                        @csrf
+                                                                        <button type="submit" class="btn btn-success" title="Procesar remesa directamente (CS: {{ $remesa->centro_servicio }})">
+                                                                            <i class="bi bi-play-circle"></i> Procesar
+                                                                        </button>
+                                                                    </form>
+                                                                @else
+                                                                    <!-- Formulario manual si no tiene centro de servicio -->
+                                                                    <a href="{{ route('remesa.procesar.form', ['id' => $remesa->primer_id ?? $remesa->id]) }}" 
+                                                                       class="btn btn-success" 
+                                                                       title="Procesar remesa pendiente (requiere seleccionar CS)">
+                                                                        <i class="bi bi-gear"></i> Configurar
+                                                                    </a>
+                                                                @endif
                                                                 <button type="button" 
                                                                         class="btn btn-danger" 
                                                                         title="Eliminar remesa pendiente"

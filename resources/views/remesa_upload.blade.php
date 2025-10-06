@@ -25,11 +25,11 @@
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="bi bi-exclamation-triangle me-2"></i>
                     <strong>Error:</strong> Se encontraron los siguientes problemas:
-                    <ul class="mb-0 mt-2">
+                    <div class="mt-2">
                         @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
+                            <div style="white-space: pre-line;">{{ $error }}</div>
                         @endforeach
-                    </ul>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             @endif
@@ -99,6 +99,32 @@
                     <!-- Upload Form -->
                     <form action="{{ route('remesa.subir.pendiente') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
                         @csrf
+                        
+                        <!-- Centro de Servicio Selection -->
+                        <div class="mb-4">
+                            <label for="centro_servicio" class="form-label fw-semibold">
+                                <i class="bi bi-building me-1"></i>
+                                Centro de Servicio
+                            </label>
+                            <select class="form-select @error('centro_servicio') is-invalid @enderror" 
+                                    id="centro_servicio" 
+                                    name="centro_servicio" 
+                                    required>
+                                <option value="">Selecciona un centro de servicio</option>
+                                @foreach(config('centros_servicio.centros') as $key => $centro)
+                                    <option value="{{ $key }}" {{ old('centro_servicio', config('centros_servicio.default')) == $key ? 'selected' : '' }}>
+                                        {{ $centro }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Todos los archivos subidos se asignarán a este centro de servicio.
+                            </div>
+                            @error('centro_servicio')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
                         
                         <div class="mb-4">
                             <label for="archivos_dbf" class="form-label fw-semibold">

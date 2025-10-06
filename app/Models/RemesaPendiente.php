@@ -60,6 +60,25 @@ class RemesaPendiente extends Model
                     ->exists();
     }
 
+    /**
+     * Verificar si existe duplicado por número de carga, usuario y centro de servicio
+     */
+    public static function existeNroCargaPorUsuarioYCentro(string $nroCarga, int $usuarioId, ?string $centroServicio = null): bool
+    {
+        return static::where('nro_carga', $nroCarga)
+                    ->where('usuario_id', $usuarioId)
+                    ->where(function($query) use ($centroServicio) {
+                        if ($centroServicio) {
+                            // Buscar en los metadatos del JSON
+                            $query->whereRaw("JSON_EXTRACT(datos_dbf, '$.metadata.centro_servicio') = ?", [$centroServicio]);
+                        } else {
+                            // Si no hay centro de servicio, buscar registros sin centro definido
+                            $query->whereRaw("JSON_EXTRACT(datos_dbf, '$.metadata.centro_servicio') IS NULL");
+                        }
+                    })
+                    ->exists();
+    }
+
     protected $casts = [
         'fecha_carga' => 'datetime',
         'datos_dbf' => 'array',
