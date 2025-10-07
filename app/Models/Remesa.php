@@ -22,7 +22,7 @@ class Remesa extends Model
     protected $table = 'remesas';
 
     protected $fillable = [
-        'usuario_id', 'nombre_archivo', 'nro_carga', 'fecha_carga', 'cargado_al_sistema', 'fecha_carga_sistema',
+        'oc', 'usuario_id', 'nombre_archivo', 'nro_carga', 'centro_servicio', 'fecha_carga', 'cargado_al_sistema', 'fecha_carga_sistema',
         // Campos DBF actualizados según nueva estructura
         'nis', 'nromedidor', 'diametro', 'clase', 'retfech', 'rethor', 'fechaprog', 'fechaing', 'tel_clie', 'horaprog',
         'cus', 'f_inst', 'marcamed', 'reclamante', 'nomclie', 'dir_proc', 'dir_cata', 'tipo_afe', 'resol', 'itin', 'aol',
@@ -197,6 +197,78 @@ class Remesa extends Model
         }
         
         return $telefono;
+    }
+
+    /**
+     * Convertir hora de retiro de formato SEDAPAL (HH.MM) a HH:MM
+     * SEDAPAL usa punto como separador: 17.30 = 17:30 (no decimal)
+     */
+    public function getHoraRetFormateadaAttribute(): ?string
+    {
+        if (!$this->rethor) {
+            return null;
+        }
+
+        // Siempre usar conversión decimal estándar
+        // 16.0 = 16 horas + 0.0 * 60 minutos = 16:00
+        $horaFloat = (float) $this->rethor;
+        $horas = floor($horaFloat);
+        $minutos = round(($horaFloat - $horas) * 60);
+        
+        // Validar rangos
+        $horas = max(0, min(23, $horas));
+        $minutos = max(0, min(59, $minutos));
+        
+        return sprintf('%02d:%02d', $horas, $minutos);
+    }
+
+    /**
+     * Convertir hora de formato SEDAPAL (HH.MM) a HH:MM
+     * SEDAPAL usa punto como separador: 17.30 = 17:30 (no decimal)
+     */
+    public function getHoraProgFormateadaAttribute(): ?string
+    {
+        if (!$this->horaprog) {
+            return null;
+        }
+
+        // Siempre usar conversión decimal estándar
+        // 17.5 = 17 horas + 0.5 * 60 minutos = 17:30
+        $horaFloat = (float) $this->horaprog;
+        $horas = floor($horaFloat);
+        $minutos = round(($horaFloat - $horas) * 60);
+        
+        // Validar rangos
+        $horas = max(0, min(23, $horas));
+        $minutos = max(0, min(59, $minutos));
+        
+        return sprintf('%02d:%02d', $horas, $minutos);
+    }
+
+    /**
+     * Obtener tipo de remesa basado en el emisor
+     */
+    public function getTipoRemesaAttribute(): string
+    {
+        if (!$this->emisor) {
+            return 'No especificado';
+        }
+
+        // Convertir a mayúsculas para comparación
+        $emisor = strtoupper(trim($this->emisor));
+        
+        // Determinar tipo basado en el campo emisor
+        switch ($emisor) {
+            case 'RECLAMO':
+            case 'RECLAMOS':
+                return 'Reclamo';
+            case 'OFICIO':
+            case 'OFICINA':
+                return 'Oficio';
+            default:
+                // Si no coincide con los patrones conocidos, mostrar el valor original
+                return ucfirst(strtolower($emisor));
+        }
     }
 
     /**

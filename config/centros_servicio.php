@@ -12,14 +12,14 @@ return [
     */
     
     'centros' => [
-        'SEDAPAL BREÑA' => 'SEDAPAL BREÑA',
-        'SEDAPAL VILLA EL SALVADOR' => 'SEDAPAL VILLA EL SALVADOR', 
         'SEDAPAL ATE' => 'SEDAPAL ATE',
+        'SEDAPAL BREÑA' => 'SEDAPAL BREÑA',
+        'SEDAPAL CALLAO' => 'SEDAPAL CALLAO',
+        'SEDAPAL CLIENTES ESPECIALES' => 'SEDAPAL CLIENTES ESPECIALES',
         'SEDAPAL COMAS' => 'SEDAPAL COMAS',
         'SEDAPAL SAN JUAN DE LURIGANCHO' => 'SEDAPAL SAN JUAN DE LURIGANCHO',
-        'SEDAPAL CLIENTES ESPECIALES' => 'SEDAPAL CLIENTES ESPECIALES',
-        'SEDAPAL CALLAO' => 'SEDAPAL CALLAO',
         'SEDAPAL SURQUILLO' => 'SEDAPAL SURQUILLO',
+        'SEDAPAL VILLA EL SALVADOR' => 'SEDAPAL VILLA EL SALVADOR',
     ],
     
     /*
@@ -28,8 +28,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | Centro de servicio que se selecciona por defecto en los formularios.
+    | Si es null, no habrá selección predeterminada.
     |
     */
     
-    'default' => 'SEDAPAL BREÑA',
+    'default' => null,
 ];

@@ -66,6 +66,72 @@ Route::middleware(['auth'])->group(function () {
         // Rutas para editar registros específicos (solo admin)
         Route::get('/remesa/registro/{id}/editar', [RemesaController::class, 'editarRegistro'])->name('remesa.editar.registro');
         Route::put('/remesa/registro/{id}', [RemesaController::class, 'actualizarRegistro'])->name('remesa.actualizar.registro');
+        Route::post('/remesa/registro/{id}/actualizar-post', [RemesaController::class, 'actualizarRegistro'])->name('remesa.actualizar.registro.post');
+        
+        // Ruta para refrescar token CSRF
+        Route::get('/refresh-csrf', function() {
+            return response()->json(['token' => csrf_token()]);
+        });
+        
+        // Ruta de prueba simple para actualización
+        Route::post('/test-update/{id}', function($id) {
+            \Log::error('🧪 TEST UPDATE INICIADO', ['id' => $id, 'user' => auth()->id()]);
+            
+            try {
+                $registro = \App\Models\Remesa::findOrFail($id);
+                
+                \Log::error('🧪 REGISTRO ENCONTRADO', ['nro_carga' => $registro->nro_carga]);
+                
+                $registro->update([
+                    'editado' => true,
+                    'fecha_edicion' => now(),
+                    'editado_por' => auth()->id(),
+                ]);
+                
+                \Log::error('🧪 ACTUALIZADO EXITOSO');
+                
+                return response()->json(['success' => true, 'message' => 'Test exitoso']);
+                
+            } catch (\Exception $e) {
+                \Log::error('🧪 ERROR EN TEST', ['error' => $e->getMessage()]);
+                return response()->json(['error' => $e->getMessage()], 500);
+            }
+        })->name('test.update');
+        
+        // Ruta de debug
+        Route::get('/debug-info', function() {
+            $debugLogPath = storage_path('logs/debug_update.log');
+            $laravelLogPath = storage_path('logs/laravel.log');
+            
+            $debugLog = 'No hay logs de debug específicos disponibles.';
+            $laravelLog = 'No hay logs de Laravel disponibles.';
+            
+            // Leer debug log específico
+            if (file_exists($debugLogPath)) {
+                $content = file_get_contents($debugLogPath);
+                $lines = explode("\n", $content);
+                $debugLog = implode("\n", array_slice($lines, -20));
+            }
+            
+            // Leer logs de Laravel más recientes
+            if (file_exists($laravelLogPath)) {
+                $content = file_get_contents($laravelLogPath);
+                $lines = explode("\n", $content);
+                $laravelLog = implode("\n", array_slice($lines, -30));
+            }
+            
+            // Información adicional del sistema
+            $sessionData = session()->all();
+            $phpInfo = [
+                'php_version' => phpversion(),
+                'memory_limit' => ini_get('memory_limit'),
+                'max_execution_time' => ini_get('max_execution_time'),
+                'session_save_handler' => ini_get('session.save_handler'),
+                'session_gc_maxlifetime' => ini_get('session.gc_maxlifetime'),
+            ];
+            
+            return view('debug', compact('debugLog', 'laravelLog', 'sessionData', 'phpInfo'));
+        })->name('debug.info');
         
         // Rutas para gestionar remesas (solo admin)
         Route::get('/remesa/{nroCarga}/gestionar', [RemesaController::class, 'gestionarRegistros'])->name('remesa.gestionar.registros');

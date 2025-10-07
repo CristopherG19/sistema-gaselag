@@ -234,6 +234,16 @@
             color: var(--gray-200);
             margin-bottom: 1rem;
         }
+        
+        /* Espacio para dropdown */
+        .table-responsive {
+            margin-bottom: 20px;
+        }
+
+        .table-responsive {
+            min-height: 200px;
+            margin-bottom: 100px;
+        }
     </style>
 @endpush
 
@@ -443,26 +453,27 @@
                                     @endif
                                 </td>
                                 <td class="compact-cell">
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <a href="{{ route('remesa.editar.registro', $registro->id) }}" 
-                                           class="btn btn-outline-warning btn-sm" 
-                                           title="Editar registro">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
-                                        <button type="button" 
-                                                class="btn btn-outline-info btn-sm" 
-                                                title="Ver detalles"
-                                                onclick="verDetalles({{ $registro->id }})">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        @if($registro->editado)
-                                            <a href="{{ route('remesa.ver.historial', $registro->id) }}" 
-                                               class="btn btn-outline-secondary btn-sm" 
-                                               title="Ver historial">
-                                                <i class="bi bi-clock-history"></i>
-                                            </a>
-                                        @endif
-                                    </div>
+                                    @php
+                                        $actions = [
+                                            [
+                                                'type' => 'button',
+                                                'onclick' => "verDetalles(" . $registro->id . ")",
+                                                'icon' => 'eye',
+                                                'text' => 'Ver Detalles'
+                                            ]
+                                        ];
+                                        
+                                        if($registro->editado) {
+                                            $actions[] = [
+                                                'type' => 'link',
+                                                'url' => route('remesa.ver.historial', $registro->id),
+                                                'icon' => 'clock-history',
+                                                'text' => 'Ver Historial'
+                                            ];
+                                        }
+                                    @endphp
+                                    
+                                    <x-actions-dropdown :actions="$actions" size="sm" />
                                 </td>
                             </tr>
                         @empty
@@ -490,7 +501,6 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function editarRegistro(id) {
             const url = '{{ route("remesa.editar.registro", ":id") }}'.replace(':id', id);

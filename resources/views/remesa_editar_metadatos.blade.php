@@ -71,21 +71,11 @@
                             <select class="form-select @error('centro_servicio') is-invalid @enderror" 
                                     id="centro_servicio" name="centro_servicio" required>
                                 <option value="">Selecciona un centro</option>
-                                <option value="SEDAPAL ATE" {{ old('centro_servicio', $infoRemesa->centro_servicio) == 'SEDAPAL ATE' ? 'selected' : '' }}>
-                                    SEDAPAL ATE
-                                </option>
-                                <option value="SEDAPAL COMAS" {{ old('centro_servicio', $infoRemesa->centro_servicio) == 'SEDAPAL COMAS' ? 'selected' : '' }}>
-                                    SEDAPAL COMAS
-                                </option>
-                                <option value="SEDAPAL LIMA" {{ old('centro_servicio', $infoRemesa->centro_servicio) == 'SEDAPAL LIMA' ? 'selected' : '' }}>
-                                    SEDAPAL LIMA
-                                </option>
-                                <option value="SEDAPAL MIRAFLORES" {{ old('centro_servicio', $infoRemesa->centro_servicio) == 'SEDAPAL MIRAFLORES' ? 'selected' : '' }}>
-                                    SEDAPAL MIRAFLORES
-                                </option>
-                                <option value="SEDAPAL SAN ISIDRO" {{ old('centro_servicio', $infoRemesa->centro_servicio) == 'SEDAPAL SAN ISIDRO' ? 'selected' : '' }}>
-                                    SEDAPAL SAN ISIDRO
-                                </option>
+                                @foreach(config('centros_servicio.centros') as $key => $centro)
+                                    <option value="{{ $key }}" {{ old('centro_servicio', $infoRemesa->centro_servicio) == $key ? 'selected' : '' }}>
+                                        {{ $centro }}
+                                    </option>
+                                @endforeach
                             </select>
                             @error('centro_servicio')
                                 <div class="invalid-feedback">{{ $message }}</div>

@@ -196,8 +196,7 @@
                                     @if(Auth::user()->isAdmin())
                                         <th>Usuario</th>
                                     @endif
-                                    <th>Editado</th>
-                                    <th>Acciones</th>
+                                    <th style="width: 80px;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -217,7 +216,7 @@
                                             <td>
                                                 @if($remesa->cargado_al_sistema)
                                                     <span class="badge bg-success">
-                                                        <i class="bi bi-check-circle"></i> Cargado
+                                                        <i class="bi bi-check-circle"></i> OK
                                                     </span>
                                                 @else
                                                     <span class="badge bg-warning">
@@ -237,68 +236,80 @@
                                                 </td>
                                             @endif
                                             <td>
-                                                @if($remesa->editado)
-                                                    <span class="badge bg-warning">
-                                                        <i class="bi bi-pencil"></i> Sí
-                                                    </span>
-                                                    <br><small class="text-muted">{{ $remesa->fecha_edicion ? \Carbon\Carbon::parse($remesa->fecha_edicion)->format('d/m/Y') : '' }}</small>
-                                                @else
-                                                    <span class="text-muted">No</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                <div class="btn-group btn-group-sm" role="group">
-                                                    @if($remesa->cargado_al_sistema)
-                                                        <a href="{{ route('remesa.ver.registros', $remesa->nro_carga) }}" 
-                                                           class="btn btn-outline-primary" title="Ver registros">
-                                                            <i class="bi bi-eye"></i>
-                                                        </a>
-                                                        @if(Auth::user()->isAdmin())
-                                                            <a href="{{ route('remesa.gestionar.registros', $remesa->nro_carga) }}" 
-                                                               class="btn btn-outline-success" title="Gestionar registros">
-                                                                <i class="bi bi-gear"></i>
-                                                            </a>
-                                                            <a href="{{ route('remesa.editar.metadatos', $remesa->nro_carga) }}" 
-                                                               class="btn btn-outline-warning" title="Editar metadatos de remesa">
-                                                                <i class="bi bi-pencil-square"></i>
-                                                            </a>
-                                                        @endif
-                                                    @else
-                                                        @if(Auth::user()->isAdmin())
-                                                            <div class="btn-group btn-group-sm" role="group">
-                                                                @if($remesa->centro_servicio)
-                                                                    <!-- Procesamiento directo si ya tiene centro de servicio -->
-                                                                    <form method="POST" action="{{ route('remesa.procesar.directo', $remesa->primer_id ?? $remesa->id) }}" style="display: inline;">
-                                                                        @csrf
-                                                                        <button type="submit" class="btn btn-success" title="Procesar remesa directamente (CS: {{ $remesa->centro_servicio }})">
-                                                                            <i class="bi bi-play-circle"></i> Procesar
-                                                                        </button>
-                                                                    </form>
-                                                                @else
-                                                                    <!-- Formulario manual si no tiene centro de servicio -->
-                                                                    <a href="{{ route('remesa.procesar.form', ['id' => $remesa->primer_id ?? $remesa->id]) }}" 
-                                                                       class="btn btn-success" 
-                                                                       title="Procesar remesa pendiente (requiere seleccionar CS)">
-                                                                        <i class="bi bi-gear"></i> Configurar
-                                                                    </a>
-                                                                @endif
-                                                                <button type="button" 
-                                                                        class="btn btn-danger" 
-                                                                        title="Eliminar remesa pendiente"
-                                                                        onclick="confirmarEliminacion({{ $remesa->primer_id ?? $remesa->id }}, '{{ $remesa->nro_carga }}')">
-                                                                    <i class="bi bi-trash"></i>
-                                                                </button>
-                                                            </div>
-                                                        @else
-                                                            <span class="text-muted">Pendiente</span>
-                                                        @endif
-                                                    @endif
-                                                </div>
+                                                @php
+                                                    $actions = [];
+                                                    
+                                                    if($remesa->cargado_al_sistema) {
+                                                        // Remesas cargadas
+                                                        $actions[] = [
+                                                            'type' => 'link',
+                                                            'url' => route('remesa.ver.registros', $remesa->nro_carga),
+                                                            'icon' => 'eye',
+                                                            'text' => 'Ver Registros'
+                                                        ];
+                                                        
+                                                        if(Auth::user()->isAdmin()) {
+                                                            $actions[] = [
+                                                                'type' => 'link',
+                                                                'url' => route('remesa.gestionar.registros', $remesa->nro_carga),
+                                                                'icon' => 'gear',
+                                                                'text' => 'Gestionar Registros'
+                                                            ];
+                                                            $actions[] = [
+                                                                'type' => 'link',
+                                                                'url' => route('remesa.editar.metadatos', $remesa->nro_carga),
+                                                                'icon' => 'pencil-square',
+                                                                'text' => 'Editar Metadatos'
+                                                            ];
+                                                        }
+                                                    } else {
+                                                        // Remesas pendientes
+                                                        if(Auth::user()->isAdmin()) {
+                                                            if($remesa->centro_servicio) {
+                                                                $actions[] = [
+                                                                    'type' => 'form',
+                                                                    'method' => 'POST',
+                                                                    'url' => route('remesa.procesar.directo', $remesa->primer_id ?? $remesa->id),
+                                                                    'icon' => 'play-circle',
+                                                                    'text' => 'Procesar Directo',
+                                                                    'subtitle' => 'CS: ' . $remesa->centro_servicio,
+                                                                    'class' => 'text-success'
+                                                                ];
+                                                            } else {
+                                                                $actions[] = [
+                                                                    'type' => 'link',
+                                                                    'url' => route('remesa.procesar.form', ['id' => $remesa->primer_id ?? $remesa->id]),
+                                                                    'icon' => 'gear',
+                                                                    'text' => 'Configurar y Procesar',
+                                                                    'class' => 'text-success'
+                                                                ];
+                                                            }
+                                                            
+                                                            $actions[] = ['type' => 'divider'];
+                                                            
+                                                            $actions[] = [
+                                                                'type' => 'button',
+                                                                'onclick' => "confirmarEliminacion(" . ($remesa->primer_id ?? $remesa->id) . ", '" . $remesa->nro_carga . "')",
+                                                                'icon' => 'trash',
+                                                                'text' => 'Eliminar',
+                                                                'class' => 'text-danger'
+                                                            ];
+                                                        } else {
+                                                            $actions[] = [
+                                                                'type' => 'text',
+                                                                'icon' => 'clock',
+                                                                'text' => 'Estado: Pendiente'
+                                                            ];
+                                                        }
+                                                    }
+                                                @endphp
+                                                
+                                                <x-simple-dropdown :actions="$actions" />
                                             </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="7" class="text-center text-muted py-4">
+                                            <td colspan="{{ Auth::user()->isAdmin() ? '8' : '7' }}" class="text-center text-muted py-4">
                                                 <i class="bi bi-inbox display-4"></i>
                                                 <p class="mt-2">No tienes remesas cargadas</p>
                                                 <a href="{{ route('remesa.upload.form') }}" class="btn btn-primary">

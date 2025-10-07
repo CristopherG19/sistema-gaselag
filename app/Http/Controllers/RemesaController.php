@@ -1198,7 +1198,7 @@ class RemesaController extends Controller
                 ->select(['id', 'nro_carga', 'nombre_archivo', 'fecha_carga', 'usuario_id', 'datos_dbf'])
                 ->get()
                 ->map(function ($remesa) {
-                    $datos_dbf = is_array($remesa->datos_dbf) ? $remesa->datos_dbf : json_decode($remesa->datos_dbf, true);
+                    $datos_dbf = is_array($remesa->datos_dbf) ? $remesa->datos_dbf : (is_string($remesa->datos_dbf) ? json_decode($remesa->datos_dbf, true) : []);
                     
                     if (isset($datos_dbf['rows']) && is_array($datos_dbf['rows'])) {
                         // Formato nuevo: datos están en ['rows']
@@ -1526,17 +1526,69 @@ class RemesaController extends Controller
         $registro = Remesa::findOrFail($id);
         
         // Solo administradores pueden editar
+        \Log::error('🔥 EDITARREGISTRO INICIADO', [
+            'user_id' => auth()->id(),
+            'is_admin' => auth()->user() ? auth()->user()->isAdmin() : false,
+            'authenticated' => auth()->check(),
+            'request_method' => $request->method(),
+            'request_url' => $request->url(),
+            'is_put' => $request->isMethod('put'),
+            'is_post' => $request->isMethod('post'),
+            'is_get' => $request->isMethod('get'),
+            'all_input' => $request->all(),
+            'headers' => $request->headers->all()
+        ]);
+        
+        if (!Auth::check()) {
+            \Log::warning('Usuario no autenticado en editarRegistro');
+            return redirect()->route('login')->with('error', 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+        }
+        
         if (!Auth::user()->isAdmin()) {
+            \Log::warning('Usuario no admin intentando editar', ['user_id' => auth()->id()]);
             abort(403, 'Solo los administradores pueden editar registros.');
         }
         
-        if ($request->isMethod('post')) {
-            // Procesar actualización - Solo validar campos editables
-            $request->validate([
-                'retfech' => 'nullable|date',
-                'rethor' => 'nullable|date_format:H:i',
-                'fechaprog' => 'nullable|date',
-                'horaprog' => 'nullable|date_format:H:i',
+        \Log::error('🔥 EVALUANDO MÉTODO', [
+            'method' => $request->method(),
+            'is_put' => $request->isMethod('put'),
+            'is_post' => $request->isMethod('post'),
+            'condition_result' => ($request->isMethod('put') || $request->isMethod('post'))
+        ]);
+        
+        if ($request->isMethod('put') || $request->isMethod('post')) {
+            \Log::error('🔥 ENTRANDO A PROCESAMIENTO PUT/POST', [
+                'id' => $id, 
+                'method' => $request->method(),
+                'has_token' => $request->has('_token'),
+                'input_keys' => array_keys($request->all()),
+                'timestamp' => now()->toDateTimeString()
+            ]);
+            
+            \Log::error('🔥 INICIANDO VALIDACIÓN');
+            
+            // Validación simple
+            try {
+                $validated = $request->validate([
+                    'retfech' => 'nullable|date',
+                    'rethor' => 'nullable',
+                    'fechaprog' => 'nullable|date',
+                    'horaprog' => 'nullable',
+                ]);
+                
+                \Log::error('🔥 VALIDACIÓN EXITOSA', ['validated' => $validated]);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                \Log::error('🔥 ERROR DE VALIDACIÓN', [
+                    'errors' => $e->errors(),
+                    'messages' => $e->getMessage()
+                ]);
+                throw $e;
+            }
+            
+            \Log::error('🔥 PROCESANDO HORAS', [
+                'input_rethor' => $request->rethor,
+                'input_horaprog' => $request->horaprog,
+                'all_input' => $request->all()
             ]);
             
             // Procesar las horas a formato decimal
@@ -1544,24 +1596,39 @@ class RemesaController extends Controller
             if ($request->rethor) {
                 [$hours, $minutes] = explode(':', $request->rethor);
                 $rethor = (float)$hours + ((float)$minutes / 60);
+                \Log::error('🔥 RETHOR PROCESADO', [
+                    'original' => $request->rethor,
+                    'hours' => $hours,
+                    'minutes' => $minutes, 
+                    'decimal' => $rethor
+                ]);
             }
             
             $horaprog = null;
             if ($request->horaprog) {
                 [$hours, $minutes] = explode(':', $request->horaprog);
                 $horaprog = (float)$hours + ((float)$minutes / 60);
+                \Log::error('🔥 HORAPROG PROCESADO', [
+                    'original' => $request->horaprog,
+                    'hours' => $hours,
+                    'minutes' => $minutes,
+                    'decimal' => $horaprog
+                ]);
             }
             
-            // Guardar campos anteriores para comparación
-            $camposOriginales = [
-                'retfech' => $registro->retfech,
-                'rethor' => $registro->rethor,
-                'fechaprog' => $registro->fechaprog,
-                'horaprog' => $registro->horaprog,
-            ];
+            \Log::info('🔄 Iniciando actualización en BD', [
+                'registro_id' => $registro->id,
+                'nro_carga' => $registro->nro_carga,
+                'datos_a_actualizar' => [
+                    'retfech' => $request->retfech,
+                    'rethor' => $rethor,
+                    'fechaprog' => $request->fechaprog,  
+                    'horaprog' => $horaprog,
+                ]
+            ]);
             
             // Actualizar solo los campos editables
-            $registro->update([
+            $updateResult = $registro->update([
                 'retfech' => $request->retfech,
                 'rethor' => $rethor,
                 'fechaprog' => $request->fechaprog,  
@@ -1569,16 +1636,43 @@ class RemesaController extends Controller
                 'editado' => true,
                 'fecha_edicion' => now(),
                 'editado_por' => Auth::id(),
-                'campos_editados' => array_keys(array_filter([
-                    'retfech' => $camposOriginales['retfech'] != $request->retfech,
-                    'rethor' => $camposOriginales['rethor'] != $rethor,
-                    'fechaprog' => $camposOriginales['fechaprog'] != $request->fechaprog,
-                    'horaprog' => $camposOriginales['horaprog'] != $horaprog,
-                ]))
             ]);
             
-            return redirect()->route('remesa.ver.registros', $registro->nro_carga)
+            \Log::info('💾 Actualización BD completada', [
+                'update_result' => $updateResult,
+                'registro_updated' => $registro->fresh()->toArray()
+            ]);
+
+            // 🔍 LOG ESPECÍFICO PARA DEBUGGING
+            $registroActualizado = $registro->fresh();
+            \Log::error('🔍 VERIFICACIÓN POST-ACTUALIZACIÓN', [
+                'horaprog_raw_bd' => $registroActualizado->horaprog,
+                'horaprog_formateado' => $registroActualizado->hora_prog_formateada,
+                'valor_enviado' => $request->horaprog,
+                'valor_procesado' => $horaprog,
+                'cambio_detectado' => $registroActualizado->horaprog != $horaprog ? 'NO SE GUARDÓ' : 'GUARDADO OK'
+            ]);
+            
+            \Log::info('🚀 Preparando redirect', [
+                'ruta' => 'remesa.gestionar.registros',
+                'nro_carga' => $registro->nro_carga,
+                'user_still_auth' => auth()->check()
+            ]);
+            
+            $redirectResponse = redirect()->route('remesa.gestionar.registros', $registro->nro_carga)
                 ->with('success', 'Registro actualizado correctamente.');
+            
+            \Log::info('✅ Redirect creado', [
+                'redirect_status' => $redirectResponse->getStatusCode(),
+                'redirect_location' => $redirectResponse->headers->get('Location')
+            ]);
+            
+            return $redirectResponse;
+        } else {
+            \Log::error('🔥 NO ENTRA AL PROCESAMIENTO - MOSTRANDO VISTA', [
+                'method' => $request->method(),
+                'reason' => 'No es PUT ni POST'
+            ]);
         }
         
         return view('remesa_editar_registro', compact('registro'));
@@ -1589,7 +1683,53 @@ class RemesaController extends Controller
      */
     public function actualizarRegistro(Request $request, int $id)
     {
-        return $this->editarRegistro($request, $id);
+        $debugData = [
+            'timestamp' => now()->toDateTimeString(),
+            'id' => $id,
+            'method' => $request->method(),
+            'url' => $request->url(),
+            'user_id' => auth()->id(),
+            'is_authenticated' => auth()->check(),
+            'is_admin' => auth()->user() ? auth()->user()->isAdmin() : false,
+            'session_id' => session()->getId(),
+            'has_csrf' => $request->has('_token'),
+            'input_count' => count($request->all()),
+            'headers' => [
+                'user_agent' => $request->header('User-Agent'),
+                'referer' => $request->header('Referer'),
+            ]
+        ];
+        
+        \Log::error('🔥 ACTUALIZAR_REGISTRO_DEBUG', $debugData);
+        
+        // También guardar en archivo específico para debug
+        file_put_contents(storage_path('logs/debug_update.log'), 
+            "[" . now() . "] " . json_encode($debugData) . "\n", 
+            FILE_APPEND
+        );
+        
+        try {
+            $result = $this->editarRegistro($request, $id);
+            
+            \Log::error('🎉 ACTUALIZAR_REGISTRO_SUCCESS', [
+                'timestamp' => now()->toDateTimeString(),
+                'result_type' => get_class($result),
+                'is_redirect' => method_exists($result, 'getStatusCode'),
+                'status_code' => method_exists($result, 'getStatusCode') ? $result->getStatusCode() : 'N/A'
+            ]);
+            
+            return $result;
+        } catch (\Exception $e) {
+            \Log::error('💥 ACTUALIZAR_REGISTRO_EXCEPTION', [
+                'timestamp' => now()->toDateTimeString(),
+                'exception' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return redirect()->route('login')->with('error', 'Error interno: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -1713,20 +1853,28 @@ class RemesaController extends Controller
                 ->withErrors(['error' => 'No se encontró la remesa especificada.']);
         }
         
-        if ($request->isMethod('post')) {
+        if ($request->isMethod('post') || $request->isMethod('put')) {
+            $centrosValidos = array_keys(config('centros_servicio.centros'));
             $request->validate([
                 'nombre_archivo' => 'required|string|max:255',
-                'centro_servicio' => 'required|string|max:255',
+                'centro_servicio' => ['required', 'string', 'max:255', 'in:' . implode(',', $centrosValidos)],
             ]);
             
             // Actualizar metadatos de todos los registros de la remesa
-            Remesa::where('nro_carga', $nroCarga)->update([
+            $registrosActualizados = Remesa::where('nro_carga', $nroCarga)->update([
                 'nombre_archivo' => $request->nombre_archivo,
                 'centro_servicio' => $request->centro_servicio,
             ]);
             
+            \Log::info('Metadatos actualizados', [
+                'nro_carga' => $nroCarga,
+                'centro_servicio' => $request->centro_servicio,
+                'nombre_archivo' => $request->nombre_archivo,
+                'registros_actualizados' => $registrosActualizados
+            ]);
+            
             return redirect()->route('remesa.lista')
-                ->with('success', 'Metadatos de la remesa actualizados correctamente.');
+                ->with('success', "Metadatos de la remesa actualizados correctamente. Se actualizaron {$registrosActualizados} registros.");
         }
         
         return view('remesa_editar_metadatos', compact('infoRemesa', 'nroCarga'));

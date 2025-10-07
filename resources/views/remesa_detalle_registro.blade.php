@@ -157,7 +157,7 @@
                             <div class="field-label">Hora Programada</div>
                             <div class="field-value">
                                 @if($registro->horaprog)
-                                    {{ sprintf('%02d:%02d', floor($registro->horaprog), ($registro->horaprog - floor($registro->horaprog)) * 60) }}
+                                    {{ $registro->hora_prog_formateada }}
                                 @else
                                     <span class="empty-field">No especificada</span>
                                 @endif

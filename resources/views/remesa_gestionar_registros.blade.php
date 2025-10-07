@@ -9,8 +9,9 @@
         font-size: 0.875rem;
         border-radius: 0.375rem;
     }
-    .table-responsive {
+        .table-responsive {
         font-size: 0.85rem;
+        margin-bottom: 20px;
     }
     .client-name {
         max-width: 200px;
@@ -176,19 +177,23 @@
                                             @endif
                                         </td>
                                         <td class="compact-cell">
-                                            <div class="d-flex gap-1">
-                                                <a href="{{ route('remesa.editar.registro', $registro->id) }}" 
-                                                   class="btn btn-warning btn-sm" 
-                                                   title="Editar registro">
-                                                    <i class="bi bi-pencil"></i>
-                                                </a>
-                                                <button type="button" 
-                                                        class="btn btn-danger btn-sm" 
-                                                        title="Eliminar registro"
-                                                        onclick="eliminarRegistro({{ $registro->id }})">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
+                            @php
+                                $actions = [
+                                    [
+                                        'type' => 'link',
+                                        'url' => route('remesa.editar.registro', $registro->id),
+                                        'icon' => 'pencil',
+                                        'text' => 'Editar Registro'
+                                    ],
+                                    ['type' => 'divider'],
+                                    [
+                                        'type' => 'button',
+                                        'onclick' => "eliminarRegistro(" . $registro->id . ")",
+                                        'icon' => 'trash',
+                                        'text' => 'Eliminar'
+                                    ]
+                                ];
+                            @endphp                                            <x-actions-dropdown :actions="$actions" size="sm" />
                                         </td>
                                     </tr>
                                 @empty

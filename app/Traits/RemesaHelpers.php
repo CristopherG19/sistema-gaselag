@@ -42,9 +42,9 @@ trait RemesaHelpers
     /**
      * Obtener centro de servicio por defecto
      */
-    protected function getCentroServicioDefault(): string
+    protected function getCentroServicioDefault(): ?string
     {
-        return config('centros_servicio.default', 'SEDAPAL BREÑA');
+        return config('centros_servicio.default');
     }
 
     /**
