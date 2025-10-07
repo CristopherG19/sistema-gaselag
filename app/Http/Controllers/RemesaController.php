@@ -1436,7 +1436,7 @@ class RemesaController extends Controller
             $query->where('usuario_id', Auth::id());
         }
         
-        // Aplicar filtros si se proporcionan
+        // Aplicar filtros específicos
         if ($request->filled('nis')) {
             $query->where('nis', 'like', '%' . $request->nis . '%');
         }
@@ -1445,12 +1445,74 @@ class RemesaController extends Controller
             $query->where('nromedidor', 'like', '%' . $request->nromedidor . '%');
         }
         
-        if ($request->filled('nomclie')) {
-            $query->where('nomclie', 'like', '%' . $request->nomclie . '%');
+        if ($request->filled('oc')) {
+            $query->where('oc', 'like', '%' . $request->oc . '%');
         }
         
-        if ($request->filled('centro_servicio')) {
-            $query->where('centro_servicio', $request->centro_servicio);
+        // Búsqueda inteligente con selector de campo
+        if ($request->filled('valor_busqueda')) {
+            $termino = trim($request->valor_busqueda);
+            $campo = $request->get('campo_busqueda', 'inteligente');
+            
+            if ($campo === 'inteligente') {
+                // Lógica de búsqueda inteligente automática
+                $query->where(function($q) use ($termino) {
+                    // Si es numérico y tiene más de 6 dígitos, probablemente es NIS
+                    if (is_numeric($termino) && strlen($termino) >= 6) {
+                        $q->where('nis', 'like', '%' . $termino . '%')
+                          ->orWhere('nromedidor', 'like', '%' . $termino . '%')
+                          ->orWhere('oc', 'like', '%' . $termino . '%');
+                    }
+                    // Si contiene letras y números, podría ser medidor o OC
+                    elseif (preg_match('/[A-Za-z]/', $termino) && preg_match('/[0-9]/', $termino)) {
+                        $q->where('nromedidor', 'like', '%' . $termino . '%')
+                          ->orWhere('oc', 'like', '%' . $termino . '%')
+                          ->orWhere('nomclie', 'like', '%' . $termino . '%');
+                    }
+                    // Si es solo texto, probablemente es nombre de cliente
+                    elseif (preg_match('/^[A-Za-zÀ-ÿ\s]+$/u', $termino)) {
+                        $q->where('nomclie', 'like', '%' . $termino . '%');
+                    }
+                    // Por defecto, buscar en todos los campos principales
+                    else {
+                        $q->where('nis', 'like', '%' . $termino . '%')
+                          ->orWhere('nromedidor', 'like', '%' . $termino . '%')
+                          ->orWhere('oc', 'like', '%' . $termino . '%')
+                          ->orWhere('nomclie', 'like', '%' . $termino . '%');
+                    }
+                });
+            } else {
+                // Búsqueda específica en el campo seleccionado
+                switch($campo) {
+                    case 'nis':
+                        $query->where('nis', 'like', '%' . $termino . '%');
+                        break;
+                    case 'nromedidor':
+                        $query->where('nromedidor', 'like', '%' . $termino . '%');
+                        break;
+                    case 'oc':
+                        $query->where('oc', 'like', '%' . $termino . '%');
+                        break;
+                    case 'cliente':
+                        $query->where('nomclie', 'like', '%' . $termino . '%');
+                        break;
+                    case 'direccion':
+                        $query->where('dirproceso', 'like', '%' . $termino . '%');
+                        break;
+                    case 'telefono':
+                        $query->where('tel_clie', 'like', '%' . $termino . '%');
+                        break;
+                }
+            }
+        }
+        
+        // Filtro de solo editados
+        if ($request->filled('solo_editados')) {
+            if ($request->solo_editados === 'si') {
+                $query->where('editado', true);
+            } elseif ($request->solo_editados === 'no') {
+                $query->where('editado', false);
+            }
         }
         
         // Obtener registros con paginación
@@ -1494,11 +1556,69 @@ class RemesaController extends Controller
         if ($request->filled('nromedidor')) {
             $estadisticasQuery->where('nromedidor', 'like', '%' . $request->nromedidor . '%');
         }
-        if ($request->filled('nomclie')) {
-            $estadisticasQuery->where('nomclie', 'like', '%' . $request->nomclie . '%');
+        if ($request->filled('oc')) {
+            $estadisticasQuery->where('oc', 'like', '%' . $request->oc . '%');
         }
-        if ($request->filled('centro_servicio')) {
-            $estadisticasQuery->where('centro_servicio', $request->centro_servicio);
+        
+        // Aplicar búsqueda inteligente también a estadísticas
+        if ($request->filled('valor_busqueda')) {
+            $termino = trim($request->valor_busqueda);
+            $campo = $request->get('campo_busqueda', 'inteligente');
+            
+            if ($campo === 'inteligente') {
+                $estadisticasQuery->where(function($q) use ($termino) {
+                    if (is_numeric($termino) && strlen($termino) >= 6) {
+                        $q->where('nis', 'like', '%' . $termino . '%')
+                          ->orWhere('nromedidor', 'like', '%' . $termino . '%')
+                          ->orWhere('oc', 'like', '%' . $termino . '%');
+                    }
+                    elseif (preg_match('/[A-Za-z]/', $termino) && preg_match('/[0-9]/', $termino)) {
+                        $q->where('nromedidor', 'like', '%' . $termino . '%')
+                          ->orWhere('oc', 'like', '%' . $termino . '%')
+                          ->orWhere('nomclie', 'like', '%' . $termino . '%');
+                    }
+                    elseif (preg_match('/^[A-Za-zÀ-ÿ\s]+$/u', $termino)) {
+                        $q->where('nomclie', 'like', '%' . $termino . '%');
+                    }
+                    else {
+                        $q->where('nis', 'like', '%' . $termino . '%')
+                          ->orWhere('nromedidor', 'like', '%' . $termino . '%')
+                          ->orWhere('oc', 'like', '%' . $termino . '%')
+                          ->orWhere('nomclie', 'like', '%' . $termino . '%');
+                    }
+                });
+            } else {
+                // Búsqueda específica en el campo seleccionado para estadísticas
+                switch($campo) {
+                    case 'nis':
+                        $estadisticasQuery->where('nis', 'like', '%' . $termino . '%');
+                        break;
+                    case 'nromedidor':
+                        $estadisticasQuery->where('nromedidor', 'like', '%' . $termino . '%');
+                        break;
+                    case 'oc':
+                        $estadisticasQuery->where('oc', 'like', '%' . $termino . '%');
+                        break;
+                    case 'cliente':
+                        $estadisticasQuery->where('nomclie', 'like', '%' . $termino . '%');
+                        break;
+                    case 'direccion':
+                        $estadisticasQuery->where('dirproceso', 'like', '%' . $termino . '%');
+                        break;
+                    case 'telefono':
+                        $estadisticasQuery->where('tel_clie', 'like', '%' . $termino . '%');
+                        break;
+                }
+            }
+        }
+        
+        // Aplicar filtro de solo editados a estadísticas
+        if ($request->filled('solo_editados')) {
+            if ($request->solo_editados === 'si') {
+                $estadisticasQuery->where('editado', true);
+            } elseif ($request->solo_editados === 'no') {
+                $estadisticasQuery->where('editado', false);
+            }
         }
 
         $estadisticas = [
@@ -1514,7 +1634,7 @@ class RemesaController extends Controller
             'infoRemesa' => $infoRemesa,
             'centrosDisponibles' => $centrosDisponibles,
             'estadisticas' => $estadisticas,
-            'filtros' => $request->only(['nis', 'nromedidor', 'nomclie', 'centro_servicio', 'per_page']),
+            'filtros' => $request->only(['nis', 'nromedidor', 'oc', 'campo_busqueda', 'valor_busqueda', 'solo_editados', 'per_page']),
         ]);
     }
 

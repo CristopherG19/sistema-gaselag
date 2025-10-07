@@ -14,6 +14,7 @@ use App\Http\Controllers\LogController;
 use App\Http\Controllers\GestionUsuariosController;
 use App\Http\Controllers\GestionQuejasController;
 use App\Http\Controllers\GestionEntregasController;
+use App\Http\Controllers\LaboratorioController;
 
 Route::get('/', [LoginController::class, 'showLoginForm']);
 
@@ -117,4 +118,28 @@ Route::middleware(['auth', 'role:operario_campo'])->group(function () {
     Route::post('entregas/{entrega}/iniciar', [GestionEntregasController::class, 'iniciar'])->name('entregas.iniciar');
     Route::post('entregas/{entrega}/completar', [GestionEntregasController::class, 'completar'])->name('entregas.completar');
     Route::post('entregas/{entrega}/actualizar-progreso', [GestionEntregasController::class, 'actualizarProgreso'])->name('entregas.actualizar-progreso');
+});
+
+// === RUTAS DEL SISTEMA DE LABORATORIO (TÉCNICOS DE LABORATORIO Y ADMINISTRADORES) ===
+Route::middleware(['auth'])->prefix('laboratorio')->name('laboratorio.')->group(function () {
+    Route::get('/', [LaboratorioController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [LaboratorioController::class, 'index'])->name('dashboard');
+    
+    // Gestión de ensayos
+    Route::get('/nuevo-ensayo', [LaboratorioController::class, 'nuevoEnsayo'])->name('nuevo-ensayo');
+    Route::post('/crear-ensayo', [LaboratorioController::class, 'crearEnsayo'])->name('crear-ensayo');
+    Route::get('/ensayo/{id}', [LaboratorioController::class, 'ensayo'])->name('ensayo');
+    Route::post('/ensayo/{id}/iniciar', [LaboratorioController::class, 'iniciarEnsayo'])->name('iniciar-ensayo');
+    Route::put('/ensayo/{id}', [LaboratorioController::class, 'actualizarEnsayo'])->name('actualizar-ensayo');
+    Route::post('/ensayo/{id}/finalizar', [LaboratorioController::class, 'finalizarEnsayo'])->name('finalizar-ensayo');
+    
+    // Listado y gestión
+    Route::get('/ensayos', [LaboratorioController::class, 'ensayos'])->name('ensayos');
+    Route::get('/bancos', [LaboratorioController::class, 'bancos'])->name('bancos');
+    
+    // Certificados y reportes
+    Route::get('/ensayo/{id}/certificado', [LaboratorioController::class, 'generarCertificado'])->name('certificado');
+    
+    // API para actualizaciones en tiempo real
+    Route::get('/api/estado-bancos', [LaboratorioController::class, 'estadoBancos'])->name('estado-bancos');
 });

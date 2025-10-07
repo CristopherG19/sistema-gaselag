@@ -70,6 +70,14 @@ class Usuario extends Authenticatable
     }
 
     /**
+     * Verificar si el usuario es técnico de laboratorio
+     */
+    public function isTecnicoLaboratorio(): bool
+    {
+        return $this->rol === 'tecnico_laboratorio';
+    }
+
+    /**
      * Verificar si el usuario está activo
      */
     public function isActivo(): bool
@@ -118,6 +126,7 @@ class Usuario extends Authenticatable
             'admin' => 'Administrador',
             'usuario' => 'Usuario Normal',
             'operario_campo' => 'Operario de Campo',
+            'tecnico_laboratorio' => 'Técnico de Laboratorio',
             default => 'Desconocido'
         };
     }
@@ -131,6 +140,7 @@ class Usuario extends Authenticatable
             'admin' => 'danger',
             'usuario' => 'primary',
             'operario_campo' => 'success',
+            'tecnico_laboratorio' => 'info',
             default => 'secondary'
         };
     }

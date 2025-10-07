@@ -64,6 +64,11 @@
                                         <i class="bi bi-truck me-2"></i>Gestión de Entregas
                                     </a>
                                 </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('laboratorio.dashboard') }}">
+                                        <i class="bi bi-clipboard2-data me-2"></i>Sistema de Laboratorio
+                                    </a>
+                                </li>
                             </ul>
                         </li>
                     @endif
@@ -82,6 +87,15 @@
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('entregas.*') ? 'active' : '' }}" href="{{ route('entregas.index') }}">
                                 <i class="bi bi-truck me-1"></i>Mis Entregas
+                            </a>
+                        </li>
+                    @endif
+                    
+                    @if(Auth::user()->isTecnicoLaboratorio() || Auth::user()->isAdmin())
+                        <!-- Sistema de Laboratorio -->
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('laboratorio.*') ? 'active' : '' }}" href="{{ route('laboratorio.dashboard') }}">
+                                <i class="bi bi-clipboard2-data me-1"></i>Laboratorio
                             </a>
                         </li>
                     @endif

@@ -74,7 +74,7 @@
                             <div class="field-value">{{ $registro->nro_carga }}</div>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <div class="field-label">Orden de Compra (OC)</div>
+                            <div class="field-label">Orden de Contrastación (OC)</div>
                             <div class="field-value">{{ $registro->oc ?: 'No asignada' }}</div>
                         </div>
                     </div>

@@ -244,6 +244,69 @@
             min-height: 200px;
             margin-bottom: 100px;
         }
+
+        /* Estilos profesionales adicionales */
+        .filter-section {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-label.fw-semibold {
+            color: #374151;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .form-control-modern,
+        .form-select {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            color: #374151;
+        }
+
+        .form-control-modern:focus,
+        .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            outline: none;
+        }
+
+        .btn-primary {
+            background-color: #3b82f6;
+            border-color: #3b82f6;
+            border-radius: 6px;
+            font-weight: 500;
+            padding: 0.625rem 1.25rem;
+        }
+
+        .btn-primary:hover {
+            background-color: #2563eb;
+            border-color: #2563eb;
+        }
+
+        .btn-outline-secondary {
+            border-color: #d1d5db;
+            color: #6b7280;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .btn-outline-secondary:hover {
+            background-color: #f3f4f6;
+            border-color: #9ca3af;
+            color: #374151;
+        }
+
+        .text-muted {
+            font-size: 0.8125rem;
+            line-height: 1.4;
+        }
     </style>
 @endpush
 
@@ -335,55 +398,79 @@
             </div>
         </div>
 
-        <!-- Filtros -->
+        <!-- Filtros Simplificados -->
         <div class="filter-section">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0">
+                <h5 class="mb-0 text-dark fw-semibold">
                     <i class="bi bi-funnel me-2"></i>Filtros de Búsqueda
                 </h5>
                 <a href="{{ route('remesa.ver.registros', $nroCarga) }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-arrow-clockwise me-1"></i>Limpiar
+                    <i class="bi bi-arrow-clockwise me-1"></i>Limpiar Filtros
                 </a>
             </div>
             
             <form method="GET" action="{{ route('remesa.ver.registros', $nroCarga) }}">
                 <div class="row g-3">
+                    <!-- Búsqueda Inteligente con Selector de Campo -->
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold">Campo</label>
+                        <select class="form-select form-control-modern" name="campo_busqueda" id="campoBusqueda">
+                            <option value="inteligente" {{ ($filtros['campo_busqueda'] ?? 'inteligente') == 'inteligente' ? 'selected' : '' }}>
+                                Inteligente
+                            </option>
+                            <option value="nis" {{ ($filtros['campo_busqueda'] ?? '') == 'nis' ? 'selected' : '' }}>
+                                NIS
+                            </option>
+                            <option value="nromedidor" {{ ($filtros['campo_busqueda'] ?? '') == 'nromedidor' ? 'selected' : '' }}>
+                                Medidor
+                            </option>
+                            <option value="oc" {{ ($filtros['campo_busqueda'] ?? '') == 'oc' ? 'selected' : '' }}>
+                                OC
+                            </option>
+                            <option value="cliente" {{ ($filtros['campo_busqueda'] ?? '') == 'cliente' ? 'selected' : '' }}>
+                                Cliente
+                            </option>
+                            <option value="direccion" {{ ($filtros['campo_busqueda'] ?? '') == 'direccion' ? 'selected' : '' }}>
+                                Dirección  
+                            </option>
+                            <option value="telefono" {{ ($filtros['campo_busqueda'] ?? '') == 'telefono' ? 'selected' : '' }}>
+                                Teléfono
+                            </option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Buscar</label>
+                        <input type="text" class="form-control form-control-modern" name="valor_busqueda" 
+                               value="{{ $filtros['valor_busqueda'] ?? '' }}" 
+                               placeholder="Ingrese valor..." 
+                               id="valorBusqueda">
+                        <small class="text-muted" id="hintBusqueda">
+                            <span id="hintInteligente">Detecta automáticamente: NIS, Medidor, OC o Cliente</span>
+                            <span id="hintNis" style="display:none;">Ej: 4130857, 6005429</span>
+                            <span id="hintMedidor" style="display:none;">Ej: EA19771736, F116758229</span>
+                            <span id="hintOc" style="display:none;">Ej: 100005, 100007</span>
+                            <span id="hintCliente" style="display:none;">Ej: CESAR ENRIQUE, MUNICIPALIDAD</span>
+                            <span id="hintDireccion" style="display:none;">Ej: CA CATARATAS, AV AUGUSTO</span>
+                            <span id="hintTelefono" style="display:none;">Ej: 3656072, 5139000</span>
+                        </small>
+                    </div>
+                    
+                    <!-- Filtros Específicos -->
                     <div class="col-md-2">
                         <label class="form-label fw-semibold">NIS</label>
                         <input type="text" class="form-control form-control-modern" name="nis" 
-                               value="{{ $filtros['nis'] ?? '' }}" placeholder="Buscar por NIS">
+                               value="{{ $filtros['nis'] ?? '' }}" placeholder="NIS">
                     </div>
+                    
                     <div class="col-md-2">
-                        <label class="form-label fw-semibold">Medidor</label>
-                        <input type="text" class="form-control form-control-modern" name="nromedidor" 
-                               value="{{ $filtros['nromedidor'] ?? '' }}" placeholder="Número de medidor">
+                        <label class="form-label fw-semibold">OC</label>
+                        <input type="text" class="form-control form-control-modern" name="oc" 
+                               value="{{ $filtros['oc'] ?? '' }}" placeholder="OC">
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Cliente</label>
-                        <input type="text" class="form-control form-control-modern" name="nomclie" 
-                               value="{{ $filtros['nomclie'] ?? '' }}" placeholder="Nombre del cliente">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label fw-semibold">Centro</label>
-                        <select class="form-select form-control-modern" name="centro_servicio">
-                            <option value="">Todos los centros</option>
-                            @foreach($centrosDisponibles as $centro)
-                                <option value="{{ $centro }}" {{ ($filtros['centro_servicio'] ?? '') == $centro ? 'selected' : '' }}>
-                                    {{ str_replace('SEDAPAL ', '', $centro) }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-1">
-                        <label class="form-label fw-semibold">Mostrar</label>
-                        <select class="form-select form-control-modern" name="per_page">
-                            <option value="25" {{ ($filtros['per_page'] ?? '50') == '25' ? 'selected' : '' }}>25</option>
-                            <option value="50" {{ ($filtros['per_page'] ?? '50') == '50' ? 'selected' : '' }}>50</option>
-                            <option value="100" {{ ($filtros['per_page'] ?? '50') == '100' ? 'selected' : '' }}>100</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100">
+                    
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary">
                             <i class="bi bi-search me-1"></i>Buscar
                         </button>
                     </div>
@@ -502,6 +589,34 @@
     </div>
 
     <script>
+        // Búsqueda inteligente con hints visuales
+        document.addEventListener('DOMContentLoaded', function() {
+            const busquedaDinamica = document.querySelector('input[name="busqueda_dinamica"]');
+            if (busquedaDinamica) {
+                busquedaDinamica.addEventListener('input', function() {
+                    const valor = this.value.trim();
+                    const hint = this.parentElement.querySelector('small');
+                    
+                    if (valor.length === 0) {
+                        hint.textContent = 'Detecta automáticamente: NIS, Medidor, OC o Cliente';
+                        hint.className = 'text-muted';
+                    } else if (valor.match(/^\d{6,}$/)) {
+                        hint.textContent = '🔍 Detectado: Búsqueda por NIS';
+                        hint.className = 'text-primary fw-bold';
+                    } else if (valor.match(/^[A-Za-z]\d+/) || valor.match(/^\d+[A-Za-z]/)) {
+                        hint.textContent = '🔍 Detectado: Búsqueda por Medidor/OC';
+                        hint.className = 'text-success fw-bold';
+                    } else if (valor.match(/^[A-Za-zÀ-ÿ\s]+$/)) {
+                        hint.textContent = '🔍 Detectado: Búsqueda por Cliente';
+                        hint.className = 'text-info fw-bold';
+                    } else {
+                        hint.textContent = '🔍 Búsqueda general en todos los campos';
+                        hint.className = 'text-warning fw-bold';
+                    }
+                });
+            }
+        });
+
         function editarRegistro(id) {
             const url = '{{ route("remesa.editar.registro", ":id") }}'.replace(':id', id);
             window.location.href = url;
@@ -516,5 +631,60 @@
             const url = '{{ route("remesa.ver.detalle", ":id") }}'.replace(':id', id);
             window.location.href = url;
         }
+
+        // Manejo de hints dinámicos para búsqueda
+        document.getElementById('campoBusqueda').addEventListener('change', function() {
+            const campo = this.value;
+            const valorInput = document.getElementById('valorBusqueda');
+            const allHints = document.querySelectorAll('[id^="hint"]');
+            
+            // Ocultar todos los hints
+            allHints.forEach(hint => hint.style.display = 'none');
+            
+            // Mostrar hint correspondiente y actualizar placeholder
+            switch(campo) {
+                case 'inteligente':
+                    document.getElementById('hintInteligente').style.display = 'inline';
+                    valorInput.placeholder = 'Ingrese valor...';
+                    break;
+                case 'nis':
+                    document.getElementById('hintNis').style.display = 'inline';
+                    valorInput.placeholder = 'NIS';
+                    break;
+                case 'nromedidor':
+                    document.getElementById('hintMedidor').style.display = 'inline';
+                    valorInput.placeholder = 'Medidor';
+                    break;
+                case 'oc':
+                    document.getElementById('hintOc').style.display = 'inline';
+                    valorInput.placeholder = 'OC';
+                    break;
+                case 'cliente':
+                    document.getElementById('hintCliente').style.display = 'inline';
+                    valorInput.placeholder = 'Cliente';
+                    break;
+                case 'direccion':
+                    document.getElementById('hintDireccion').style.display = 'inline';
+                    valorInput.placeholder = 'Dirección';
+                    break;
+                case 'telefono':
+                    document.getElementById('hintTelefono').style.display = 'inline';
+                    valorInput.placeholder = 'Teléfono';
+                    break;
+            }
+        });
+
+        // Auto-limpiar filtros específicos cuando se usa búsqueda general
+        document.getElementById('valorBusqueda').addEventListener('input', function() {
+            if (this.value.length > 0) {
+                // Opcional: limpiar filtros específicos cuando se usa búsqueda general
+                const nisInput = document.querySelector('input[name="nis"]');
+                const ocInput = document.querySelector('input[name="oc"]');
+                if (nisInput && ocInput) {
+                    // Solo sugerir, no forzar
+                    this.setAttribute('title', 'Sugerencia: Para búsquedas específicas usa los filtros individuales de NIS y OC');
+                }
+            }
+        });
     </script>
 @endsection
