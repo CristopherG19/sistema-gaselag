@@ -16,6 +16,5 @@ class Kernel extends HttpKernel
     protected $routeMiddleware = [
         // ...otros middlewares...
         'admin' => \App\Http\Middleware\AdminMiddleware::class,
-        'debug.redirect' => \App\Http\Middleware\DebugRedirectMiddleware::class,
     ];
 }
