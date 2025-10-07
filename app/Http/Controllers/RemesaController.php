@@ -1646,10 +1646,10 @@ class RemesaController extends Controller
         $registro = Remesa::findOrFail($id);
         
         // Solo administradores pueden editar
-        \Log::error('🔥 EDITARREGISTRO INICIADO', [
-            'user_id' => auth()->id(),
-            'is_admin' => auth()->user() ? auth()->user()->isAdmin() : false,
-            'authenticated' => auth()->check(),
+        Log::error('🔥 EDITARREGISTRO INICIADO', [
+            'user_id' => Auth::id(),
+            'is_admin' => Auth::user() ? Auth::user()->isAdmin() : false,
+            'authenticated' => Auth::check(),
             'request_method' => $request->method(),
             'request_url' => $request->url(),
             'is_put' => $request->isMethod('put'),
@@ -1660,16 +1660,16 @@ class RemesaController extends Controller
         ]);
         
         if (!Auth::check()) {
-            \Log::warning('Usuario no autenticado en editarRegistro');
+            Log::warning('Usuario no autenticado en editarRegistro');
             return redirect()->route('login')->with('error', 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
         }
         
         if (!Auth::user()->isAdmin()) {
-            \Log::warning('Usuario no admin intentando editar', ['user_id' => auth()->id()]);
+            Log::warning('Usuario no admin intentando editar', ['user_id' => Auth::id()]);
             abort(403, 'Solo los administradores pueden editar registros.');
         }
         
-        \Log::error('🔥 EVALUANDO MÉTODO', [
+        Log::error('🔥 EVALUANDO MÉTODO', [
             'method' => $request->method(),
             'is_put' => $request->isMethod('put'),
             'is_post' => $request->isMethod('post'),
@@ -1677,7 +1677,7 @@ class RemesaController extends Controller
         ]);
         
         if ($request->isMethod('put') || $request->isMethod('post')) {
-            \Log::error('🔥 ENTRANDO A PROCESAMIENTO PUT/POST', [
+            Log::error('🔥 ENTRANDO A PROCESAMIENTO PUT/POST', [
                 'id' => $id, 
                 'method' => $request->method(),
                 'has_token' => $request->has('_token'),
@@ -1685,7 +1685,7 @@ class RemesaController extends Controller
                 'timestamp' => now()->toDateTimeString()
             ]);
             
-            \Log::error('🔥 INICIANDO VALIDACIÓN');
+            Log::error('🔥 INICIANDO VALIDACIÓN');
             
             // Validación simple
             try {
@@ -1696,16 +1696,16 @@ class RemesaController extends Controller
                     'horaprog' => 'nullable',
                 ]);
                 
-                \Log::error('🔥 VALIDACIÓN EXITOSA', ['validated' => $validated]);
+                Log::error('🔥 VALIDACIÓN EXITOSA', ['validated' => $validated]);
             } catch (\Illuminate\Validation\ValidationException $e) {
-                \Log::error('🔥 ERROR DE VALIDACIÓN', [
+                Log::error('🔥 ERROR DE VALIDACIÓN', [
                     'errors' => $e->errors(),
                     'messages' => $e->getMessage()
                 ]);
                 throw $e;
             }
             
-            \Log::error('🔥 PROCESANDO HORAS', [
+            Log::error('🔥 PROCESANDO HORAS', [
                 'input_rethor' => $request->rethor,
                 'input_horaprog' => $request->horaprog,
                 'all_input' => $request->all()
@@ -1716,7 +1716,7 @@ class RemesaController extends Controller
             if ($request->rethor) {
                 [$hours, $minutes] = explode(':', $request->rethor);
                 $rethor = (float)$hours + ((float)$minutes / 60);
-                \Log::error('🔥 RETHOR PROCESADO', [
+                Log::error('🔥 RETHOR PROCESADO', [
                     'original' => $request->rethor,
                     'hours' => $hours,
                     'minutes' => $minutes, 
@@ -1728,7 +1728,7 @@ class RemesaController extends Controller
             if ($request->horaprog) {
                 [$hours, $minutes] = explode(':', $request->horaprog);
                 $horaprog = (float)$hours + ((float)$minutes / 60);
-                \Log::error('🔥 HORAPROG PROCESADO', [
+                Log::error('🔥 HORAPROG PROCESADO', [
                     'original' => $request->horaprog,
                     'hours' => $hours,
                     'minutes' => $minutes,
@@ -1736,7 +1736,7 @@ class RemesaController extends Controller
                 ]);
             }
             
-            \Log::info('🔄 Iniciando actualización en BD', [
+            Log::info('🔄 Iniciando actualización en BD', [
                 'registro_id' => $registro->id,
                 'nro_carga' => $registro->nro_carga,
                 'datos_a_actualizar' => [
@@ -1758,14 +1758,14 @@ class RemesaController extends Controller
                 'editado_por' => Auth::id(),
             ]);
             
-            \Log::info('💾 Actualización BD completada', [
+            Log::info('💾 Actualización BD completada', [
                 'update_result' => $updateResult,
                 'registro_updated' => $registro->fresh()->toArray()
             ]);
 
             // 🔍 LOG ESPECÍFICO PARA DEBUGGING
             $registroActualizado = $registro->fresh();
-            \Log::error('🔍 VERIFICACIÓN POST-ACTUALIZACIÓN', [
+            Log::error('🔍 VERIFICACIÓN POST-ACTUALIZACIÓN', [
                 'horaprog_raw_bd' => $registroActualizado->horaprog,
                 'horaprog_formateado' => $registroActualizado->hora_prog_formateada,
                 'valor_enviado' => $request->horaprog,
@@ -1773,23 +1773,23 @@ class RemesaController extends Controller
                 'cambio_detectado' => $registroActualizado->horaprog != $horaprog ? 'NO SE GUARDÓ' : 'GUARDADO OK'
             ]);
             
-            \Log::info('🚀 Preparando redirect', [
+            Log::info('🚀 Preparando redirect', [
                 'ruta' => 'remesa.gestionar.registros',
                 'nro_carga' => $registro->nro_carga,
-                'user_still_auth' => auth()->check()
+                'user_still_auth' => Auth::check()
             ]);
             
             $redirectResponse = redirect()->route('remesa.gestionar.registros', $registro->nro_carga)
                 ->with('success', 'Registro actualizado correctamente.');
             
-            \Log::info('✅ Redirect creado', [
+            Log::info('✅ Redirect creado', [
                 'redirect_status' => $redirectResponse->getStatusCode(),
                 'redirect_location' => $redirectResponse->headers->get('Location')
             ]);
             
             return $redirectResponse;
         } else {
-            \Log::error('🔥 NO ENTRA AL PROCESAMIENTO - MOSTRANDO VISTA', [
+            Log::error('🔥 NO ENTRA AL PROCESAMIENTO - MOSTRANDO VISTA', [
                 'method' => $request->method(),
                 'reason' => 'No es PUT ni POST'
             ]);
@@ -1808,9 +1808,9 @@ class RemesaController extends Controller
             'id' => $id,
             'method' => $request->method(),
             'url' => $request->url(),
-            'user_id' => auth()->id(),
-            'is_authenticated' => auth()->check(),
-            'is_admin' => auth()->user() ? auth()->user()->isAdmin() : false,
+            'user_id' => Auth::id(),
+            'is_authenticated' => Auth::check(),
+            'is_admin' => Auth::user() ? Auth::user()->isAdmin() : false,
             'session_id' => session()->getId(),
             'has_csrf' => $request->has('_token'),
             'input_count' => count($request->all()),
@@ -1820,7 +1820,7 @@ class RemesaController extends Controller
             ]
         ];
         
-        \Log::error('🔥 ACTUALIZAR_REGISTRO_DEBUG', $debugData);
+        Log::error('🔥 ACTUALIZAR_REGISTRO_DEBUG', $debugData);
         
         // También guardar en archivo específico para debug
         file_put_contents(storage_path('logs/debug_update.log'), 
@@ -1831,7 +1831,7 @@ class RemesaController extends Controller
         try {
             $result = $this->editarRegistro($request, $id);
             
-            \Log::error('🎉 ACTUALIZAR_REGISTRO_SUCCESS', [
+            Log::error('🎉 ACTUALIZAR_REGISTRO_SUCCESS', [
                 'timestamp' => now()->toDateTimeString(),
                 'result_type' => get_class($result),
                 'is_redirect' => method_exists($result, 'getStatusCode'),
@@ -1840,7 +1840,7 @@ class RemesaController extends Controller
             
             return $result;
         } catch (\Exception $e) {
-            \Log::error('💥 ACTUALIZAR_REGISTRO_EXCEPTION', [
+            Log::error('💥 ACTUALIZAR_REGISTRO_EXCEPTION', [
                 'timestamp' => now()->toDateTimeString(),
                 'exception' => $e->getMessage(),
                 'file' => $e->getFile(),
@@ -1986,7 +1986,7 @@ class RemesaController extends Controller
                 'centro_servicio' => $request->centro_servicio,
             ]);
             
-            \Log::info('Metadatos actualizados', [
+            Log::info('Metadatos actualizados', [
                 'nro_carga' => $nroCarga,
                 'centro_servicio' => $request->centro_servicio,
                 'nombre_archivo' => $request->nombre_archivo,

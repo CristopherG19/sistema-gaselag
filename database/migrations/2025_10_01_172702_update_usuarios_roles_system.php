@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('usuarios', function (Blueprint $table) {
-            // Actualizar el enum de roles para incluir los nuevos roles
-            $table->enum('rol', ['admin', 'usuario', 'operario_campo'])
+            // Actualizar el enum de roles para incluir los nuevos roles (incluyendo tecnico_laboratorio)
+            $table->enum('rol', ['admin', 'usuario', 'operario_campo', 'tecnico_laboratorio'])
                   ->default('usuario')
                   ->change();
             

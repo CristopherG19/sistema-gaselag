@@ -35,7 +35,8 @@ class InvestigarPendiente extends Command
             
             if (empty($datosDbf)) {
                 $this->error("   ❌ datos_dbf está vacío o es inválido");
-                $this->line("   • Contenido raw: " . substr($pendiente->datos_dbf, 0, 200) . "...");
+                $contenidoRaw = is_array($pendiente->datos_dbf) ? json_encode($pendiente->datos_dbf) : (string)$pendiente->datos_dbf;
+                $this->line("   • Contenido raw: " . substr($contenidoRaw, 0, 200) . "...");
             } else {
                 $this->info("   ✅ datos_dbf contiene datos");
                 

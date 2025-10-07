@@ -20,7 +20,7 @@ return new class extends Migration
                 'apellidos' => 'Técnico Laboratorio',
                 'correo' => 'tecnico.lab@gaselag.com',
                 'password' => Hash::make('tecnico123'),
-                'rol' => 'tecnico_laboratorio',
+                'rol' => 'operario_campo', // Usar rol válido existente, se actualizará después
                 'activo' => true,
                 'notas' => 'Usuario de prueba para sistema de laboratorio'
             ],
@@ -29,7 +29,7 @@ return new class extends Migration
                 'apellidos' => 'Especialista Medidores',
                 'correo' => 'maria.especialista@gaselag.com',
                 'password' => Hash::make('especialista123'),
-                'rol' => 'tecnico_laboratorio',
+                'rol' => 'operario_campo', // Usar rol válido existente, se actualizará después
                 'activo' => true,
                 'notas' => 'Especialista en ensayos de medidores de agua'
             ]
